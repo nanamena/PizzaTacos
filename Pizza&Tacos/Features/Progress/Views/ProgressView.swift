@@ -39,17 +39,32 @@ struct ProgressView: View {
             }
             .pickerStyle(.segmented)
             HStack {
-                Button { viewModel.move(-1) } label: { Image(systemName: "chevron.left") }
-                Spacer()
-                Text(viewModel.periodTitle).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
-                Spacer()
-                Button { viewModel.move(1) } label: { Image(systemName: "chevron.right") }
-                    .disabled(!viewModel.canGoForward).opacity(viewModel.canGoForward ? 1 : 0.35)
+                Button("Previous period", systemImage: "chevron.left") {
+                    viewModel.move(-1)
+                }
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
+
+                Spacer(minLength: 4)
+
+                Text(viewModel.periodTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColors.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer(minLength: 4)
+
+                Button("Next period", systemImage: "chevron.right") {
+                    viewModel.move(1)
+                }
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
+                .disabled(!viewModel.canGoForward)
             }
-            .font(.system(size: 16, weight: .semibold)).foregroundStyle(AppColors.primary)
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
         }
-        .padding(13).appCard()
+        .tint(AppColors.primary)
     }
 
     private func statSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -83,28 +98,42 @@ struct ProgressView: View {
         titledCard("How Was Your Week?") {
             VStack(alignment: .leading, spacing: 12) {
                 Text("How you felt after each workout.").font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 4) {
+                ScrollView(.horizontal, showsIndicators: true) {
+                    HStack(alignment: .top, spacing: 0) {
                         ForEach(viewModel.weekDays, id: \.self) { day in
                             let record = viewModel.record(on: day)
+                            let isSelected = viewModel.selectedDay.map { Calendar.current.isDate($0, inSameDayAs: day) } == true
                             Button { viewModel.selectedDay = day } label: {
-                                VStack(spacing: 5) {
+                                VStack(spacing: 3) {
                                     if let mood = record?.feeling {
-                                        Image("ModiFiTMascot").resizable().scaledToFit().frame(width: 40, height: 40)
-                                            .overlay(alignment: .bottomTrailing) { Image(systemName: mood.symbol).font(.system(size: 9, weight: .bold)).foregroundStyle(AppColors.primary) }
+                                        Image(systemName: mood.symbol)
+                                            .font(.system(size: 19, weight: .semibold))
+                                            .foregroundStyle(AppColors.primary)
+                                            .frame(width: 40, height: 40)
+                                            .background(AppColors.accent.opacity(0.5), in: Circle())
                                     } else {
                                         Circle().fill(AppColors.accent.opacity(0.5)).frame(width: 40, height: 40)
                                     }
-                                    Text(day.formatted(.dateTime.weekday(.narrow))).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                                    Text(day.formatted(.dateTime.weekday(.abbreviated)))
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(AppColors.secondaryText)
+                                        .lineLimit(1)
+                                    Text(day.formatted(.dateTime.day()))
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundStyle(AppColors.text)
                                     if record != nil { Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(AppColors.primary) }
                                 }
                                 .frame(width: 44)
-                                .frame(minHeight: 76)
+                                .frame(minHeight: 92)
                                 .contentShape(Rectangle())
-                                .background(viewModel.selectedDay.map { Calendar.current.isDate($0, inSameDayAs: day) } == true ? AppColors.accent.opacity(0.55) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                                .background(isSelected ? AppColors.accent.opacity(0.55) : .clear, in: RoundedRectangle(cornerRadius: 12))
                             }
                             .buttonStyle(.plain)
                             .disabled(record == nil)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(day.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                            .accessibilityValue(record?.feeling?.rawValue ?? (record == nil ? "No workout recorded" : "Workout completed, no mood feedback"))
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
                         }
                     }
                 }

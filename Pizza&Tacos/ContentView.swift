@@ -7,24 +7,27 @@ struct ContentView: View {
     @StateObject private var themeStore = AppThemeStore()
     @StateObject private var historyStore = WorkoutHistoryStore()
     @StateObject private var workoutLibrary = WorkoutLibraryStore()
+    @StateObject private var workoutPreferences = WorkoutPreferencesStore()
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Workouts", systemImage: "dumbbell.fill", value: AppTab.workouts) {
-                WorkoutsView(viewModel: viewModel, historyStore: historyStore, workoutLibrary: workoutLibrary)
+                WorkoutsView(viewModel: viewModel, historyStore: historyStore, workoutLibrary: workoutLibrary, workoutPreferences: workoutPreferences)
             }
             Tab("Progress", systemImage: "chart.bar.fill", value: AppTab.progress) {
                 ProgressView(historyStore: historyStore)
             }
             Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings) {
-                SettingsView(themeStore: themeStore)
+                SettingsView(themeStore: themeStore, workoutPreferences: workoutPreferences)
             }
         }
         .id(themeStore.viewIdentity)
         .tint(AppColors.primary)
         .preferredColorScheme(themeStore.preferredColorScheme)
         .sheet(isPresented: $viewModel.isAddWorkoutPresented) {
-            AddWorkoutSheet(workoutLibrary: workoutLibrary)
+            AddWorkoutSheet(workoutLibrary: workoutLibrary) {
+                viewModel.isManualWorkoutRequested = true
+            }
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }

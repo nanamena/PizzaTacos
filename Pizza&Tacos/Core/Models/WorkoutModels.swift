@@ -90,6 +90,26 @@ struct Routine: Identifiable, Hashable, Codable {
     let name: String
     let symbol: String
     let exercises: [FocusExercise]
+    var createdAt: Date = Date()
+
+    private enum CodingKeys: String, CodingKey { case id, name, symbol, exercises, createdAt }
+
+    init(id: String, name: String, symbol: String, exercises: [FocusExercise], createdAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.symbol = symbol
+        self.exercises = exercises
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        name = try values.decode(String.self, forKey: .name)
+        symbol = try values.decode(String.self, forKey: .symbol)
+        exercises = try values.decode([FocusExercise].self, forKey: .exercises)
+        createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+    }
 
     var exerciseCount: Int { exercises.count }
     var estimatedMinutes: Int { WorkoutTiming.totalMinutes(for: exercises) }

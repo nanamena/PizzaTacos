@@ -7,6 +7,7 @@ enum AppColors {
     static var surface: Color { dynamic(.surface) }
     static var card: Color { surface }
     static var primary: Color { dynamic(.primary) }
+    static let coral = Color(hex: 0xFF7F50)
     static var terracotta: Color { dynamic(.primary, palette: .terracotta) }
     static var secondary: Color { dynamic(.secondary) }
     static var accent: Color { dynamic(.accent) }

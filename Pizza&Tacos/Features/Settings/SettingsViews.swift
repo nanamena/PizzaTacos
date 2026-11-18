@@ -236,6 +236,7 @@ private struct SettingsDivider: View {
 // Esta vista presenta el panel Settings y enlaza las preferencias con sus destinos.
 struct SettingsView: View {
     @ObservedObject var themeStore: AppThemeStore
+    @ObservedObject var workoutPreferences: WorkoutPreferencesStore
     @StateObject private var viewModel = SettingsViewModel()
     @StateObject private var permissionsViewModel = PermissionsViewModel()
 
@@ -254,6 +255,12 @@ struct SettingsView: View {
                     .padding(.bottom, 2)
 
                     AppearanceSettingsCard(themeStore: themeStore)
+                    NavigationLink {
+                        WorkoutPreferencesView(preferences: workoutPreferences)
+                    } label: {
+                        WorkoutPreferencesCard()
+                    }
+                    .buttonStyle(.plain)
 
                     NavigationLink {
                         PermissionsView(viewModel: permissionsViewModel)
@@ -275,6 +282,48 @@ struct SettingsView: View {
             .toolbar(.hidden, for: .navigationBar)
         }
         .tint(AppColors.primary)
+    }
+}
+
+private struct WorkoutPreferencesCard: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                SettingsIcon(symbol: "dumbbell.fill")
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Workout Preferences")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(AppColors.text)
+                    Text("Sets, reps and rest for new exercises.")
+                        .font(.system(size: 12, design: .rounded))
+                        .foregroundStyle(AppColors.secondaryText)
+                }
+            }
+            Spacer(minLength: 4)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppColors.secondaryText)
+        }
+        .padding(16)
+        .settingsCardStyle()
+    }
+}
+
+private struct WorkoutPreferencesView: View {
+    @ObservedObject var preferences: WorkoutPreferencesStore
+
+    var body: some View {
+        Form {
+            Section {
+                WorkoutSetStepper(value: $preferences.defaultSets, range: 1...10)
+                ExerciseNumberField(title: "Repetitions", value: $preferences.defaultRepetitions, range: 1...30)
+                WorkoutDurationPicker(title: "Rest", value: $preferences.defaultRestSeconds, range: 0...300)
+            } footer: {
+                Text("Applied automatically to each exercise in manually created workouts.")
+            }
+        }
+        .navigationTitle("Workout Preferences")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
