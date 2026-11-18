@@ -5,9 +5,11 @@ struct FocusWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: FocusWorkoutViewModel
     private let historyStore: WorkoutHistoryStore
+    private let onWorkoutCompleted: () -> Void
 
-    init(routine: Routine, historyStore: WorkoutHistoryStore) {
+    init(routine: Routine, historyStore: WorkoutHistoryStore, onWorkoutCompleted: @escaping () -> Void = {}) {
         self.historyStore = historyStore
+        self.onWorkoutCompleted = onWorkoutCompleted
         _viewModel = StateObject(wrappedValue: FocusWorkoutViewModel(routine: routine, historyStore: historyStore))
     }
 
@@ -33,10 +35,21 @@ struct FocusWorkoutView: View {
                             .foregroundStyle(AppColors.terracotta)
                     }
                     .accessibilityLabel("End workout")
+                    .confirmationDialog("End this workout?", isPresented: $viewModel.showingEndConfirmation, titleVisibility: .visible) {
+                        Button("Keep Workout Running", role: .cancel) { }
+                        Button("End Workout", role: .destructive) { viewModel.endWorkout() }
+                    } message: {
+                        Text("Your completed sets will be included in this session.")
+                    }
                 }
             }
         }
         .onAppear { viewModel.startWorkout() }
+        .onChange(of: viewModel.state) { _, state in
+            if state == .completed && !viewModel.endedEarly {
+                onWorkoutCompleted()
+            }
+        }
         .sheet(item: $viewModel.presentedSheet) { route in
             NavigationStack {
                 switch route {
@@ -48,12 +61,6 @@ struct FocusWorkoutView: View {
             }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
-        }
-        .confirmationDialog("End this workout?", isPresented: $viewModel.showingEndConfirmation, titleVisibility: .visible) {
-            Button("Keep Workout Running", role: .cancel) { }
-            Button("End Workout", role: .destructive) { viewModel.endWorkout() }
-        } message: {
-            Text("Your completed sets will be included in this session.")
         }
         .sensoryFeedback(.success, trigger: viewModel.completedSets)
     }
@@ -85,7 +92,6 @@ struct FocusWorkoutView: View {
     private var actionControls: some View {
         if viewModel.state == .resting {
             HStack(spacing: 11) {
-                WorkoutActionButton(symbol: "arrow.counterclockwise", label: "Restart Rest", action: viewModel.restartRest)
                 WorkoutPrimaryAction(title: viewModel.restLeadsToNextExercise ? "Next Exercise" : "Next Set", symbol: "forward.end.fill", action: viewModel.skipRest)
                 WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
             }
@@ -121,7 +127,10 @@ struct WorkoutCompletionView: View {
                     .font(.system(size: 15, design: .rounded)).foregroundStyle(AppColors.secondaryText)
                     .multilineTextAlignment(.center)
 
-                MascotWorkoutView(accessibilityDescription: "ModiFiT mascot celebrating your workout")
+                Image("WorkoutCompletionMascot")
+                    .resizable()
+                    .scaledToFit()
+                    .accessibilityLabel("ModiFiT mascot celebrating your workout")
                     .frame(width: 190, height: 205).padding(.vertical, 2)
 
                 HStack(spacing: 0) {
@@ -255,7 +264,7 @@ struct WorkoutStatsView: View {
         HStack(spacing: 0) {
             TimelineView(.periodic(from: .now, by: 1)) { _ in
                 stat(symbol: "clock", title: "Time Remaining", value: viewModel.remainingWorkoutText,
-                     valueColor: viewModel.isWorkoutEstimateExceeded ? .red : AppColors.text)
+                     detail: viewModel.workoutDelayText)
             }
             divider
             stat(symbol: "chart.bar.fill", title: "Progress", value: viewModel.progressLabel)
@@ -263,13 +272,17 @@ struct WorkoutStatsView: View {
         .padding(.vertical, 13).appCard()
     }
 
-    private func stat(symbol: String, title: String, value: String, valueColor: Color = AppColors.text) -> some View {
+    private func stat(symbol: String, title: String, value: String, detail: String? = nil) -> some View {
         VStack(spacing: 5) {
             Image(systemName: symbol).font(.system(size: 21, weight: .semibold)).foregroundStyle(AppColors.primary)
             Text(title).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
                 .lineLimit(1).minimumScaleFactor(0.8)
-            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(valueColor)
+            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
                 .lineLimit(1).minimumScaleFactor(0.75)
+            if let detail {
+                Text(detail).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.red)
+                    .lineLimit(1).minimumScaleFactor(0.75)
+            }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
@@ -327,6 +340,9 @@ struct WorkoutTimerView: View {
     @ObservedObject var viewModel: FocusWorkoutViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animation = WorkoutAnimation.all.randomElement()!
+    @State private var animationStartedAt = Date.now
+
+    private static let animationFrameDuration = 0.8
 
     private var timerText: String? {
         if viewModel.isShowingRest {
@@ -341,16 +357,18 @@ struct WorkoutTimerView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            TimelineView(.periodic(from: .now, by: 1.5)) { context in
-                let index = reduceMotion || viewModel.state == .paused
-                    ? 0 : Int(context.date.timeIntervalSinceReferenceDate / 1.5) % 2
+            TimelineView(.periodic(from: .now, by: Self.animationFrameDuration)) { context in
                 let displayedAnimation = viewModel.isShowingRest
                     ? (viewModel.restTimeExpired ? WorkoutAnimation.restOvertime : WorkoutAnimation.rest)
                     : animation
-                displayedAnimation.frame(index)
-                .frame(maxWidth: 320)
-                .aspectRatio(1, contentMode: .fit)
-                .accessibilityLabel("Workout animation")
+                let frameIndex = frameIndex(for: displayedAnimation, at: context.date)
+
+                Image(displayedAnimation.frameName(frameIndex))
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 320)
+                    .aspectRatio(1, contentMode: .fit)
+                    .accessibilityLabel("Workout animation")
             }
 
             if !viewModel.isShowingRest {
@@ -378,43 +396,52 @@ struct WorkoutTimerView: View {
         .frame(maxWidth: .infinity)
         .onChange(of: viewModel.exerciseIndex) { _, _ in
             animation = WorkoutAnimation.all.randomElement()!
+            animationStartedAt = .now
         }
+        .onChange(of: viewModel.state) { _, _ in
+            animationStartedAt = .now
+        }
+        .onChange(of: viewModel.restTimeExpired) { _, _ in
+            animationStartedAt = .now
+        }
+        .onAppear {
+            animationStartedAt = .now
+        }
+    }
+
+    private func frameIndex(for animation: WorkoutAnimation, at date: Date) -> Int {
+        guard !reduceMotion, viewModel.state != .paused else { return 0 }
+
+        let elapsed = max(0, date.timeIntervalSince(animationStartedAt))
+        if animation.repeats {
+            return Int(elapsed / Self.animationFrameDuration) % 2
+        }
+        return elapsed >= Self.animationFrameDuration ? 1 : 0
     }
 }
 
 private struct WorkoutAnimation {
     let first: String
-    let second: String?
+    let second: String
+    var repeats = true
 
-    static let rest = WorkoutAnimation(first: "WorkoutAnimationRest", second: nil)
-    static let restOvertime = WorkoutAnimation(first: "WorkoutAnimationRestOvertime", second: nil)
+    static let rest = WorkoutAnimation(first: "WorkoutAnimationRest1", second: "WorkoutAnimationRest2")
+    static let restOvertime = WorkoutAnimation(
+        first: "WorkoutAnimationMelt1",
+        second: "WorkoutAnimationMelt2",
+        repeats: false
+    )
 
     static let all: [WorkoutAnimation] = [
-        .init(first: "WorkoutAnimationSquat1", second: "WorkoutAnimationSquat2"),
-        .init(first: "WorkoutAnimationLat1", second: "WorkoutAnimationLat2"),
-        .init(first: "WorkoutAnimationBench", second: nil),
-        .init(first: "WorkoutAnimationCurl", second: nil),
-        .init(first: "WorkoutAnimationRow", second: nil),
-        .init(first: "WorkoutAnimationTriceps", second: nil),
-        .init(first: "WorkoutAnimationLeg", second: nil),
-        .init(first: "WorkoutAnimationPlank", second: nil),
-        .init(first: "WorkoutAnimationTreadmill", second: nil)
+        .init(first: "WorkoutAnimationCurl1", second: "WorkoutAnimationCurl2"),
+        .init(first: "WorkoutAnimationCycle1", second: "WorkoutAnimationCycle2"),
+        .init(first: "WorkoutAnimationLegPress1", second: "WorkoutAnimationLegPress2"),
+        .init(first: "WorkoutAnimationPulley1", second: "WorkoutAnimationPulley2"),
+        .init(first: "WorkoutAnimationTreadmill1", second: "WorkoutAnimationTreadmill2")
     ]
 
-    @ViewBuilder
-    func frame(_ index: Int) -> some View {
-        if let second {
-            Image(index == 0 ? first : second)
-                .resizable().scaledToFit()
-        } else {
-            GeometryReader { geometry in
-                Image(first)
-                    .resizable().scaledToFit()
-                    .frame(width: geometry.size.width * 2, height: geometry.size.height)
-                    .offset(x: index == 0 ? 0 : -geometry.size.width)
-            }
-            .clipped()
-        }
+    func frameName(_ index: Int) -> String {
+        index == 0 ? first : second
     }
 }
 import SwiftUI

@@ -6,7 +6,11 @@ import UIKit
 
 // Esta pantalla ofrece cámara, Fotos y Archivos, y conserva una copia antes de continuar.
 struct WorkoutScannerView: View {
+    let activePlanName: String?
+    let onActivate: (String, [Routine]) -> Void
     @StateObject private var viewModel = WorkoutScannerViewModel()
+    @State private var isReading = false
+    @State private var showingReview = false
 
     var body: some View {
         ScrollView {
@@ -14,27 +18,43 @@ struct WorkoutScannerView: View {
                 Text("Scan Workout Plan").font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
                 Text("Choose a photo or document to prepare your workout plan.")
                     .font(.system(size: 14, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-                VStack(spacing: 10) {
-                    sourceButton("Take Photo", symbol: "camera", action: viewModel.prepareCamera)
-                    Button { viewModel.showingPhotos = true } label: {
-                        sourceLabel("Choose from Photos", symbol: "photo")
-                    }.buttonStyle(.plain)
-                    sourceButton("Choose from Files", symbol: "folder", action: { viewModel.showingImporter = true })
-                }
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        sourceButton("Take Photo", symbol: "camera", action: viewModel.prepareCamera)
+                        Text("ModiFiT uses the camera to capture your plan and read the exercises on this device.")
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                            .padding(.horizontal, 12)
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        Button { viewModel.showingPhotos = true } label: {
+                            sourceLabel("Choose from Photos", symbol: "photo")
+                        }.buttonStyle(.plain)
+                        Text("ModiFiT reads the exercises from the photo you choose and saves a copy on this device.")
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                            .padding(.horizontal, 12)
+                    }
+                    VStack(alignment: .leading, spacing: 5) {
+                        sourceButton("Choose from Files", symbol: "folder", action: { viewModel.showingImporter = true })
+                        Text("ModiFiT reads the exercises from the PDF or image you choose and saves a copy on this device.")
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                            .padding(.horizontal, 12)
+                    }
+                }.disabled(isReading)
                 if let data = viewModel.previewData, let name = viewModel.fileName {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(name).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
-                        if name.lowercased().hasSuffix(".pdf"), let url = viewModel.savedURL {
+                        if viewModel.isPDF, let url = viewModel.savedURL {
                             PDFPlanPreview(url: url).frame(height: 330).clipShape(RoundedRectangle(cornerRadius: 16))
                         } else if let image = UIImage(data: data) {
                             Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 350).frame(maxWidth: .infinity)
                         }
-                        Button { viewModel.confirmContinue() } label: {
+                        Button { isReading = true } label: {
                             Text("Continue").font(.system(size: 16, weight: .bold, design: .rounded)).foregroundStyle(.white)
                                 .frame(maxWidth: .infinity, minHeight: 52).background(AppColors.primary, in: Capsule())
-                        }.buttonStyle(.plain)
-                        Text("Your plan is saved on this device. Exercise recognition is not available yet.")
-                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                        }.buttonStyle(.plain).disabled(isReading)
+                        if isReading {
+                            SwiftUI.ProgressView("Reading workout plan…")
+                        }
                     }.padding(14).appCard()
                 }
             }
@@ -42,12 +62,25 @@ struct WorkoutScannerView: View {
         }
         .background(AppColors.background.ignoresSafeArea())
         .navigationTitle("Scan Plan").navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $showingReview) {
+            if let draft = Binding($viewModel.reviewDraft) {
+                WorkoutImportReviewView(draft: draft, activePlanName: activePlanName, onActivate: onActivate)
+            }
+        }
+        .task(id: isReading) {
+            guard isReading else { return }
+            await viewModel.prepareReview()
+            guard !Task.isCancelled else { return }
+            isReading = false
+            showingReview = viewModel.reviewDraft != nil
+        }
         .fileImporter(isPresented: $viewModel.showingImporter, allowedContentTypes: [.pdf, .image], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { viewModel.importFile(url) }
             case .failure: viewModel.reportImportFailure()
             }
         }
+        .fileDialogMessage("Choose a PDF or image so ModiFiT can read the exercises in your plan on this device.")
         .sheet(isPresented: $viewModel.showingPhotos) {
             PhotoLibraryPicker { data, fileName in
                 viewModel.importSelectedPhoto(data, name: fileName)
@@ -59,13 +92,10 @@ struct WorkoutScannerView: View {
                 viewModel.importPhoto(data, name: "Workout-Camera-\(UUID().uuidString.prefix(8))")
             }
         }
-        .alert(viewModel.showingError ? "Workout Plan" : "Plan Ready",
-               isPresented: Binding(get: { viewModel.showingError || viewModel.showingContinueMessage }, set: { shown in
-                   if !shown { viewModel.showingError = false; viewModel.showingContinueMessage = false }
-               })) {
+        .alert("Workout Plan", isPresented: $viewModel.showingError) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(viewModel.showingError ? viewModel.errorMessage : "The selected plan has been preserved. Text recognition and exercise extraction will be added in a future update.")
+            Text(viewModel.errorMessage)
         }
     }
 

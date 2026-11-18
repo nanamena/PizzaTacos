@@ -3,12 +3,14 @@ import SwiftUI
 struct TrainingScreen: View {
     let routine: Routine
     let historyStore: WorkoutHistoryStore
+    let onWorkoutCompleted: () -> Void
     @State private var viewModel: TrainingViewModel
     @State private var activeRoutine: Routine?
 
-    init(routine: Routine, historyStore: WorkoutHistoryStore) {
+    init(routine: Routine, historyStore: WorkoutHistoryStore, onWorkoutCompleted: @escaping () -> Void = {}) {
         self.routine = routine
         self.historyStore = historyStore
+        self.onWorkoutCompleted = onWorkoutCompleted
         _viewModel = State(initialValue: TrainingViewModel(exercises: routine.exercises))
     }
 
@@ -56,7 +58,7 @@ struct TrainingScreen: View {
             }
         }
         .navigationDestination(item: $activeRoutine) { activeRoutine in
-            FocusWorkoutView(routine: activeRoutine, historyStore: historyStore)
+            FocusWorkoutView(routine: activeRoutine, historyStore: historyStore, onWorkoutCompleted: onWorkoutCompleted)
         }
         .sensoryFeedback(.selection, trigger: viewModel.selectedIDs)
     }

@@ -12,9 +12,14 @@ final class WorkoutScannerViewModel: ObservableObject {
     @Published var showingError = false
     @Published var errorMessage = ""
     @Published var showingCamera = false
-    @Published var showingContinueMessage = false
     @Published var showingPhotos = false
     @Published var showingImporter = false
+    @Published var reviewDraft: WorkoutImportDraft?
+
+    var isPDF: Bool {
+        fileName?.lowercased().hasSuffix(".pdf") == true
+            || previewData?.starts(with: "%PDF-".utf8) == true
+    }
 
     func prepareCamera() {
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
@@ -53,7 +58,13 @@ final class WorkoutScannerViewModel: ObservableObject {
         } catch { showError("This file could not be opened. Choose another PDF or image.") }
     }
 
-    func confirmContinue() { showingContinueMessage = true }
+    func prepareReview() async {
+        guard reviewDraft == nil, let previewData, let fileName else { return }
+        let text = (try? await WorkoutPlanTextReader.read(previewData, isPDF: isPDF)) ?? ""
+        guard !Task.isCancelled else { return }
+        reviewDraft = WorkoutImportDraft(fileName: fileName, recognizedText: text)
+    }
+
     func reportImportFailure() { showError("The selected file could not be imported.") }
 
     private func save(data: Data, name: String) {
@@ -66,6 +77,7 @@ final class WorkoutScannerViewModel: ObservableObject {
             previewData = data
             savedURL = destination
             fileName = name
+            reviewDraft = nil
         } catch { showError("The workout plan could not be saved on this device.") }
     }
 

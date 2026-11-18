@@ -1,7 +1,7 @@
 import Foundation
 
 // Este modelo representa un ejercicio dentro de una sesión activa.
-struct FocusExercise: Identifiable, Hashable {
+struct FocusExercise: Identifiable, Hashable, Codable {
     let id: String
     let name: String
     let sets: Int
@@ -85,7 +85,7 @@ struct WorkoutHistoryRecord: Codable, Identifiable {
 import Foundation
 
 // Este modelo representa una rutina que aparece en la colección de entrenamientos.
-struct Routine: Identifiable, Hashable {
+struct Routine: Identifiable, Hashable, Codable {
     let id: String
     let name: String
     let symbol: String
@@ -97,20 +97,26 @@ struct Routine: Identifiable, Hashable {
 
 enum WorkoutTiming {
     private static let secondsPerRep = 4
-    private static let transitionSeconds = 35
+
+    static func secondsPerSet(for exercise: FocusExercise) -> Int {
+        if let duration = exercise.durationSeconds { return max(0, duration) }
+        if let repetitions = exercise.repetitions { return max(0, repetitions * secondsPerRep) }
+        return 30
+    }
 
     static func seconds(for exercise: FocusExercise, followedByExercise: Bool) -> Int {
-        let secondsPerSet = exercise.durationSeconds ?? (exercise.repetitions ?? 0) * secondsPerRep
         let restCount = followedByExercise ? exercise.sets : max(exercise.sets - 1, 0)
-        let transition = followedByExercise ? transitionSeconds : 0
-        return exercise.sets * secondsPerSet + restCount * exercise.restSeconds + transition
+        return exercise.sets * secondsPerSet(for: exercise) + restCount * exercise.restSeconds
+    }
+
+    static func totalSeconds(for exercises: [FocusExercise]) -> Int {
+        exercises.enumerated().reduce(0) { total, entry in
+            total + seconds(for: entry.element, followedByExercise: entry.offset < exercises.count - 1)
+        }
     }
 
     static func totalMinutes(for exercises: [FocusExercise]) -> Int {
-        let totalSeconds = exercises.enumerated().reduce(0) { sum, entry in
-            sum + seconds(for: entry.element, followedByExercise: entry.offset < exercises.count - 1)
-        }
-        return Int((Double(totalSeconds) / 60).rounded())
+        Int((Double(totalSeconds(for: exercises)) / 60).rounded())
     }
 }
 

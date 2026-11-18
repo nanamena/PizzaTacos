@@ -262,15 +262,9 @@ struct SettingsView: View {
                     }.buttonStyle(.plain)
 
                     NavigationLink {
-                        NotificationsSettingsView(viewModel: permissionsViewModel)
-                    } label: {
-                        SettingsNavigationRow(item: viewModel.navigationItems[1])
-                    }.buttonStyle(.plain)
-
-                    NavigationLink {
                         AboutSettingsView()
                     } label: {
-                        SettingsNavigationRow(item: viewModel.navigationItems[2])
+                        SettingsNavigationRow(item: viewModel.navigationItems[1])
                     }.buttonStyle(.plain)
                 }
                 .frame(maxWidth: 620, alignment: .leading)

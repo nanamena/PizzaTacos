@@ -4,14 +4,16 @@ import SwiftUI
 struct WorkoutsView: View {
     @ObservedObject var viewModel: WorkoutsViewModel
     let historyStore: WorkoutHistoryStore
+    @ObservedObject var workoutLibrary: WorkoutLibraryStore
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 25) {
                     WorkoutHeaderView(onAdd: viewModel.presentAddWorkout)
-                    TodaysWorkoutCard(workout: viewModel.todayWorkout)
-                    RoutinesSection(routines: viewModel.routines)
+                    TodaysWorkoutCard(routine: workoutLibrary.nextRoutine,
+                                      nextWorkoutLabel: workoutLibrary.nextWorkoutLabel)
+                    RoutinesSection(routines: viewModel.routines + workoutLibrary.standaloneRoutines)
                 }
                 .frame(maxWidth: 620)
                 .padding(.horizontal, 22)
@@ -23,7 +25,9 @@ struct WorkoutsView: View {
             .navigationTitle("Workouts")
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Routine.self) { routine in
-                TrainingScreen(routine: routine, historyStore: historyStore)
+                TrainingScreen(routine: routine, historyStore: historyStore) {
+                    workoutLibrary.markCompleted(routine.id)
+                }
             }
         }
     }
@@ -58,15 +62,36 @@ private struct WorkoutHeaderView: View {
 
 // Esta tarjeta resume el entrenamiento de hoy y mantiene la mascota dentro de su columna visual.
 private struct TodaysWorkoutCard: View {
-    let workout: TodayWorkout
+    let routine: Routine?
+    let nextWorkoutLabel: String?
 
     var body: some View {
         HStack(spacing: 4) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Today's Workout").font(.system(size: 22, weight: .bold, design: .rounded))
-                Text(workout.name).font(.system(size: 18, weight: .medium, design: .rounded))
-                Label("\(workout.exerciseCount) exercises", systemImage: "dumbbell.fill")
-                Label("~ \(workout.estimatedMinutes) min (estimated)", systemImage: "timer")
+                Text("Next Workout").font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(routine?.name ?? "No workout planned")
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                if let routine {
+                    if let nextWorkoutLabel {
+                        Text(nextWorkoutLabel).font(.system(size: 12, weight: .semibold, design: .rounded))
+                    }
+                    Label("\(routine.exerciseCount) exercises", systemImage: "dumbbell.fill")
+                    Label("~ \(routine.estimatedMinutes) min (estimated)", systemImage: "timer")
+                } else {
+                    Text("Use + to add a workout or training plan.")
+                        .font(.system(size: 13, design: .rounded))
+                }
+                if let routine {
+                    NavigationLink(value: routine) {
+                        Text("View Workout")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 15).padding(.vertical, 9)
+                            .foregroundStyle(AppColors.primary)
+                            .background(.white, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 3)
+                }
             }
             .font(.system(size: 15, weight: .medium, design: .rounded))
             .foregroundStyle(.white)
@@ -134,6 +159,9 @@ import SwiftUI
 
 // Esta hoja presenta las dos opciones de incorporación de rutinas indicadas en el diseño.
 struct AddWorkoutSheet: View {
+    @ObservedObject var workoutLibrary: WorkoutLibraryStore
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 13) {
@@ -145,10 +173,17 @@ struct AddWorkoutSheet: View {
 
                 FloatingMascotView().frame(height: 145).padding(.vertical, 2)
 
-                NavigationLink { WorkoutScannerView() } label: {
+                NavigationLink {
+                    WorkoutScannerView(activePlanName: workoutLibrary.activePlan?.name) { name, days in
+                        workoutLibrary.savePlan(name: name, days: days)
+                        dismiss()
+                    }
+                } label: {
                     AddWorkoutOption(title: "Scan Workout Plan", subtitle: "Take a photo or choose a file from your device.", symbol: "viewfinder")
                 }.buttonStyle(SoftPressStyle())
-                NavigationLink { AddWorkoutDestination(title: "Create Manually", symbol: "pencil") } label: {
+                NavigationLink {
+                    ManualWorkoutEditorView(workoutLibrary: workoutLibrary, onSaved: { dismiss() })
+                } label: {
                     AddWorkoutOption(title: "Create Manually", subtitle: "Add exercises, sets, reps and rest time.", symbol: "pencil")
                 }.buttonStyle(SoftPressStyle())
                 Spacer(minLength: 4)
@@ -159,6 +194,73 @@ struct AddWorkoutSheet: View {
             .navigationTitle("Add Workout")
             .navigationBarTitleDisplayMode(.inline)
         }
+    }
+}
+
+private struct ManualWorkoutEditorView: View {
+    @ObservedObject var workoutLibrary: WorkoutLibraryStore
+    let onSaved: () -> Void
+    @State private var name = ""
+    @State private var isPlan = false
+    @State private var dayNames = ["Day 1"]
+    @State private var exerciseText = [""]
+
+    var body: some View {
+        Form {
+            Section("Workout") {
+                TextField("Name", text: $name)
+                Toggle("Create a multi-day plan", isOn: $isPlan)
+            }
+
+            ForEach(dayNames.indices, id: \.self) { index in
+                Section(isPlan ? dayNames[index] : "Exercises") {
+                    if isPlan {
+                        TextField("Day name", text: $dayNames[index])
+                    }
+                    TextField("Exercises, separated by commas", text: $exerciseText[index], axis: .vertical)
+                        .lineLimit(2...4)
+                    Text("Each exercise starts with 3 sets, 10 reps and 60 seconds of rest. You can adjust sets during the workout.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+
+            if isPlan {
+                Button("Add Day", systemImage: "plus") {
+                    dayNames.append("Day \(dayNames.count + 1)")
+                    exerciseText.append("")
+                }
+            }
+        }
+        .navigationTitle(isPlan ? "New Training Plan" : "New Workout")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Save", action: save)
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !exerciseText.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }))
+            }
+        }
+    }
+
+    private func save() {
+        let routines = dayNames.indices.compactMap { index -> Routine? in
+            let exercises = exerciseText[index].split(separator: ",").map { rawName in
+                let exerciseName = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+                return FocusExercise(id: UUID().uuidString, name: exerciseName, sets: 3,
+                                     repetitions: 10, durationSeconds: nil, restSeconds: 60,
+                                     symbol: "dumbbell.fill")
+            }.filter { !$0.name.isEmpty }
+            guard !exercises.isEmpty else { return nil }
+            return Routine(id: UUID().uuidString,
+                           name: isPlan ? dayNames[index] : name.trimmingCharacters(in: .whitespacesAndNewlines),
+                           symbol: "dumbbell.fill", exercises: exercises)
+        }
+        guard !routines.isEmpty else { return }
+        if isPlan {
+            workoutLibrary.savePlan(name: name.trimmingCharacters(in: .whitespacesAndNewlines), days: routines)
+        } else if let routine = routines.first {
+            workoutLibrary.saveRoutine(routine)
+        }
+        onSaved()
     }
 }
 

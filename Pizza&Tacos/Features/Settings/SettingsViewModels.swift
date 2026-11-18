@@ -157,7 +157,6 @@ final class SettingsViewModel: ObservableObject {
     let subtitle = "Customize your training experience."
     let navigationItems = [
         SettingsDestination(title: "Permissions", subtitle: "Manage app access.", symbol: "lock.shield"),
-        SettingsDestination(title: "Notifications", subtitle: "Workout reminders and updates.", symbol: "bell.fill"),
         SettingsDestination(title: "About", subtitle: "App version, terms and privacy.", symbol: "info.circle")
     ]
 }

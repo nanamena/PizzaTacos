@@ -6,11 +6,12 @@ struct ContentView: View {
     @StateObject private var viewModel = WorkoutsViewModel()
     @StateObject private var themeStore = AppThemeStore()
     @StateObject private var historyStore = WorkoutHistoryStore()
+    @StateObject private var workoutLibrary = WorkoutLibraryStore()
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Workouts", systemImage: "dumbbell.fill", value: AppTab.workouts) {
-                WorkoutsView(viewModel: viewModel, historyStore: historyStore)
+                WorkoutsView(viewModel: viewModel, historyStore: historyStore, workoutLibrary: workoutLibrary)
             }
             Tab("Progress", systemImage: "chart.bar.fill", value: AppTab.progress) {
                 ProgressView(historyStore: historyStore)
@@ -23,7 +24,7 @@ struct ContentView: View {
         .tint(AppColors.primary)
         .preferredColorScheme(themeStore.preferredColorScheme)
         .sheet(isPresented: $viewModel.isAddWorkoutPresented) {
-            AddWorkoutSheet()
+            AddWorkoutSheet(workoutLibrary: workoutLibrary)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
