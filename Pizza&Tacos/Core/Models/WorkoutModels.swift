@@ -30,12 +30,10 @@ enum WorkoutSessionState: Equatable {
 // Esta ruta identifica las hojas de ejercicios y sus detalles.
 enum FocusWorkoutSheet: Identifiable {
     case exerciseList
-    case exerciseDetail(FocusExercise)
 
     var id: String {
         switch self {
         case .exerciseList: "exercise-list"
-        case .exerciseDetail(let exercise): "exercise-\(exercise.id)"
         }
     }
 }
@@ -90,9 +88,30 @@ import Foundation
 struct Routine: Identifiable, Hashable {
     let id: String
     let name: String
-    let exerciseCount: Int
-    let estimatedMinutes: Int
     let symbol: String
+    let exercises: [FocusExercise]
+
+    var exerciseCount: Int { exercises.count }
+    var estimatedMinutes: Int { WorkoutTiming.totalMinutes(for: exercises) }
+}
+
+enum WorkoutTiming {
+    private static let secondsPerRep = 4
+    private static let transitionSeconds = 35
+
+    static func seconds(for exercise: FocusExercise, followedByExercise: Bool) -> Int {
+        let secondsPerSet = exercise.durationSeconds ?? (exercise.repetitions ?? 0) * secondsPerRep
+        let restCount = followedByExercise ? exercise.sets : max(exercise.sets - 1, 0)
+        let transition = followedByExercise ? transitionSeconds : 0
+        return exercise.sets * secondsPerSet + restCount * exercise.restSeconds + transition
+    }
+
+    static func totalMinutes(for exercises: [FocusExercise]) -> Int {
+        let totalSeconds = exercises.enumerated().reduce(0) { sum, entry in
+            sum + seconds(for: entry.element, followedByExercise: entry.offset < exercises.count - 1)
+        }
+        return Int((Double(totalSeconds) / 60).rounded())
+    }
 }
 
 // Este modelo agrupa la información resumida de la sesión programada para hoy.
@@ -103,18 +122,8 @@ struct TodayWorkout {
 }
 
 // Esta enumeración define las tres áreas principales de la aplicación.
-enum AppTab: String, CaseIterable, Identifiable {
-    case workouts = "Workouts"
-    case progress = "Progress"
-    case settings = "Settings"
-
-    var id: String { rawValue }
-
-    var symbol: String {
-        switch self {
-        case .workouts: "dumbbell.fill"
-        case .progress: "chart.bar.fill"
-        case .settings: "gearshape.fill"
-        }
-    }
+enum AppTab: Hashable {
+    case workouts
+    case progress
+    case settings
 }

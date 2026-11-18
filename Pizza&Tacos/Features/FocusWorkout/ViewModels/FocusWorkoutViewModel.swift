@@ -8,6 +8,9 @@ final class FocusWorkoutViewModel: ObservableObject {
     @Published private(set) var exerciseIndex = 0
     @Published private(set) var currentSet = 1
     @Published private(set) var remainingSeconds = 0
+    @Published private(set) var restTimeExpired = false
+    @Published private(set) var restOvertimeSeconds = 0
+    @Published private(set) var restLeadsToNextExercise = false
     @Published private(set) var countdownDuration = 0
     @Published private(set) var completedExercises = 0
     @Published private(set) var completedSets = 0
@@ -24,9 +27,12 @@ final class FocusWorkoutViewModel: ObservableObject {
 
     private var timerTask: Task<Void, Never>?
     private var countdownDeadline: Date?
+    private var restOvertimeStartedAt: Date?
     private var activeRestDuration = 0
     private var pausedFromState: WorkoutSessionState = .exercising
     private var sessionStartedAt: Date?
+    private var currentSetStartedAt: Date?
+    private var estimatedWorkoutDeadline: Date?
     private var sessionEndedAt: Date?
     private var totalPausedSeconds: TimeInterval = 0
     private var pauseStartedAt: Date?
@@ -34,18 +40,18 @@ final class FocusWorkoutViewModel: ObservableObject {
     init(routine: Routine, historyStore: WorkoutHistoryStore) {
         self.routine = routine
         self.historyStore = historyStore
-        exercises = Self.exercises(for: routine).map { exercise in
-            FocusExercise(id: exercise.id, name: exercise.name, sets: exercise.sets,
-                          repetitions: exercise.repetitions, durationSeconds: exercise.durationSeconds,
-                          restSeconds: exercise.restSeconds, symbol: exercise.symbol,
-                          muscleGroups: Self.muscleGroups(for: exercise.name))
+        exercises = routine.exercises.map { exercise in
+            var exercise = exercise
+            exercise.muscleGroups = Self.muscleGroups(for: exercise.name)
+            return exercise
         }
     }
 
     var currentExercise: FocusExercise { exercises[min(exerciseIndex, exercises.count - 1)] }
     var currentExerciseNumber: Int { min(exerciseIndex + 1, exercises.count) }
     var pausedStateIsTimedExercise: Bool { pausedFromState == .exercising && currentExercise.durationSeconds != nil }
-    var progressLabel: String { "\(completedExercises) of \(exercises.count)" }
+    var isShowingRest: Bool { state == .resting || (state == .paused && pausedFromState == .resting) }
+    var progressLabel: String { "\(currentExerciseNumber) of \(exercises.count)" }
     var segmentProgress: Double { Double(completedExercises) / Double(max(exercises.count, 1)) }
     var currentTimeText: String {
         if currentExercise.durationSeconds != nil && (state == .exercising || state == .paused) {
@@ -54,8 +60,23 @@ final class FocusWorkoutViewModel: ObservableObject {
         return currentExercise.repetitions.map { "\($0) reps" } ?? "Exercise"
     }
     var setLabel: String { "Set \(currentSet) of \(currentExercise.sets)" }
-    var currentCaloriesText: String { "— kcal" }
-    var remainingWorkoutText: String { "≈ \(Self.timeString(estimatedRemainingSeconds))" }
+    var elapsedTimerStart: Date? { sessionStartedAt?.addingTimeInterval(totalPausedSeconds) }
+    var elapsedWorkoutText: String {
+        guard let sessionStartedAt else { return "00:00" }
+        let end = sessionEndedAt ?? pauseStartedAt ?? Date()
+        let elapsed = max(0, Int(end.timeIntervalSince(sessionStartedAt) - totalPausedSeconds))
+        return Self.timeString(elapsed)
+    }
+    private var estimatedWorkoutTimeLeft: TimeInterval {
+        guard let estimatedWorkoutDeadline else { return TimeInterval(estimatedRemainingSeconds) }
+        return estimatedWorkoutDeadline.timeIntervalSince(sessionEndedAt ?? pauseStartedAt ?? Date())
+    }
+    var isWorkoutEstimateExceeded: Bool { estimatedWorkoutTimeLeft < 0 }
+    var remainingWorkoutText: String {
+        let remaining = estimatedWorkoutTimeLeft
+        let seconds = remaining < 0 ? Int(-remaining) : Int(ceil(remaining))
+        return remaining < 0 ? "+\(Self.timeString(seconds))" : "≈ \(Self.timeString(seconds))"
+    }
     var nextExercise: FocusExercise? {
         if state == .resting { return exercises.indices.contains(exerciseIndex) ? exercises[exerciseIndex] : nil }
         let nextIndex = exerciseIndex + 1
@@ -76,6 +97,7 @@ final class FocusWorkoutViewModel: ObservableObject {
         sessionStartedAt = Date()
         state = .exercising
         startTimedExerciseIfNeeded()
+        estimatedWorkoutDeadline = Date().addingTimeInterval(TimeInterval(estimatedRemainingSeconds))
     }
 
     // Esta función pausa el estado actual y conserva el tiempo exacto restante.
@@ -84,10 +106,13 @@ final class FocusWorkoutViewModel: ObservableObject {
         pausedFromState = state
         if let deadline = countdownDeadline {
             remainingSeconds = max(0, Int(ceil(deadline.timeIntervalSinceNow)))
-            timerTask?.cancel()
-            timerTask = nil
             countdownDeadline = nil
         }
+        if restTimeExpired, let started = restOvertimeStartedAt {
+            restOvertimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
+        }
+        timerTask?.cancel()
+        timerTask = nil
         pauseStartedAt = Date()
         state = .paused
     }
@@ -96,11 +121,17 @@ final class FocusWorkoutViewModel: ObservableObject {
     func resumeWorkout() {
         guard state == .paused else { return }
         if let pauseStartedAt {
-            totalPausedSeconds += Date().timeIntervalSince(pauseStartedAt)
+            let pauseDuration = Date().timeIntervalSince(pauseStartedAt)
+            totalPausedSeconds += pauseDuration
+            estimatedWorkoutDeadline = estimatedWorkoutDeadline?.addingTimeInterval(pauseDuration)
+            if restTimeExpired { restOvertimeStartedAt = restOvertimeStartedAt?.addingTimeInterval(pauseDuration) }
+            if pausedFromState == .exercising { currentSetStartedAt = currentSetStartedAt?.addingTimeInterval(pauseDuration) }
         }
         pauseStartedAt = nil
         state = pausedFromState
-        if pausedFromState == .resting || currentExercise.durationSeconds != nil {
+        if pausedFromState == .resting && restTimeExpired {
+            startRestOvertime()
+        } else if (pausedFromState == .resting && !restTimeExpired) || (pausedFromState == .exercising && currentExercise.durationSeconds != nil) {
             startCountdown(seconds: remainingSeconds, phase: pausedFromState)
         }
     }
@@ -114,6 +145,7 @@ final class FocusWorkoutViewModel: ObservableObject {
         completedSets += 1
 
         let finishedExercise = currentExercise
+        restLeadsToNextExercise = currentSet >= finishedExercise.sets
         if currentSet >= finishedExercise.sets {
             completedExercises += 1
             if exerciseIndex + 1 >= exercises.count {
@@ -127,6 +159,9 @@ final class FocusWorkoutViewModel: ObservableObject {
         }
 
         activeRestDuration = max(0, finishedExercise.restSeconds)
+        restTimeExpired = false
+        restOvertimeStartedAt = nil
+        restOvertimeSeconds = 0
         if activeRestDuration > 0 {
             startCountdown(seconds: activeRestDuration, phase: .resting)
         } else {
@@ -142,13 +177,20 @@ final class FocusWorkoutViewModel: ObservableObject {
         timerTask = nil
         countdownDeadline = nil
         remainingSeconds = 0
+        restTimeExpired = false
+        restOvertimeStartedAt = nil
+        restOvertimeSeconds = 0
         state = .exercising
         startTimedExerciseIfNeeded()
+        estimatedWorkoutDeadline = Date().addingTimeInterval(TimeInterval(estimatedRemainingSeconds))
     }
 
     // Esta función reinicia el periodo de descanso actual.
     func restartRest() {
         guard state == .resting else { return }
+        restTimeExpired = false
+        restOvertimeStartedAt = nil
+        restOvertimeSeconds = 0
         startCountdown(seconds: activeRestDuration, phase: .resting)
     }
 
@@ -159,6 +201,10 @@ final class FocusWorkoutViewModel: ObservableObject {
         countdownDeadline = nil
         exerciseIndex = 0
         currentSet = 1
+        restTimeExpired = false
+        restLeadsToNextExercise = false
+        restOvertimeStartedAt = nil
+        restOvertimeSeconds = 0
         completedExercises = 0
         completedSets = 0
         totalPausedSeconds = 0
@@ -178,11 +224,6 @@ final class FocusWorkoutViewModel: ObservableObject {
     // Esta función abre la lista completa sin cambiar el ejercicio activo.
     func showExerciseList() {
         presentedSheet = .exerciseList
-    }
-
-    // Esta función muestra detalles de un ejercicio sin alterar el progreso.
-    func showDetails(for exercise: FocusExercise) {
-        presentedSheet = .exerciseDetail(exercise)
     }
 
     // Esta función cuenta hacia atrás usando una fecha límite para evitar deriva del temporizador.
@@ -205,7 +246,7 @@ final class FocusWorkoutViewModel: ObservableObject {
                 if secondsLeft == 0 {
                     self.timerTask = nil
                     self.countdownDeadline = nil
-                    self.countdownFinished(phase: phase)
+                    self.countdownFinished(phase: phase, expiredAt: deadline)
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(200))
@@ -213,19 +254,31 @@ final class FocusWorkoutViewModel: ObservableObject {
         }
     }
 
-    // Esta función transiciona del descanso al ejercicio o completa ejercicios por tiempo.
-    private func countdownFinished(phase: WorkoutSessionState) {
+    private func countdownFinished(phase: WorkoutSessionState, expiredAt: Date = Date()) {
         guard state != .paused && state != .completed else { return }
         if phase == .resting {
-            state = .exercising
-            startTimedExerciseIfNeeded()
+            restTimeExpired = true
+            restOvertimeStartedAt = expiredAt
+            startRestOvertime()
         } else if phase == .exercising {
             finishCurrentSet()
         }
     }
 
+    private func startRestOvertime() {
+        timerTask?.cancel()
+        timerTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, self.state == .resting, let started = self.restOvertimeStartedAt else { return }
+                self.restOvertimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+        }
+    }
+
     // Esta función inicia un conteo para ejercicios con duración configurada.
     private func startTimedExerciseIfNeeded() {
+        currentSetStartedAt = Date()
         guard let duration = currentExercise.durationSeconds else { return }
         startCountdown(seconds: duration, phase: .exercising)
     }
@@ -260,7 +313,13 @@ final class FocusWorkoutViewModel: ObservableObject {
         if state == .resting || (state == .paused && pausedFromState == .resting) {
             estimate += remainingSeconds
         } else if state == .exercising || state == .paused {
-            estimate += currentExercise.durationSeconds.map { remainingSeconds > 0 ? remainingSeconds : $0 } ?? 30
+            if currentExercise.durationSeconds != nil {
+                estimate += remainingSeconds
+            } else {
+                let now = pauseStartedAt ?? Date()
+                let elapsed = currentSetStartedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0
+                estimate += max(0, Int(ceil(30 - elapsed)))
+            }
             if isNotFinalSet(exerciseIndex: exerciseIndex, set: currentSet) { estimate += currentExercise.restSeconds }
         }
 
@@ -305,38 +364,5 @@ final class FocusWorkoutViewModel: ObservableObject {
         if name.contains("squat") || name.contains("lunge") { return ["Legs", "Glutes"] }
         if name.contains("calf") { return ["Legs"] }
         return []
-    }
-
-    // Estos ejemplos mantienen ejercicios y cantidades explícitos mientras se conecta el almacenamiento real.
-    private static func exercises(for routine: Routine) -> [FocusExercise] {
-        switch routine.id {
-        case "lower":
-            [
-                FocusExercise(id: "squat", name: "Goblet Squat", sets: 4, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "figure.strengthtraining.traditional"),
-                FocusExercise(id: "deadlift", name: "Romanian Deadlift", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "lunge", name: "Reverse Lunge", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 45, symbol: "figure.walk"),
-                FocusExercise(id: "bridge", name: "Glute Bridge", sets: 3, repetitions: 12, durationSeconds: nil, restSeconds: 45, symbol: "figure.core.training"),
-                FocusExercise(id: "calf", name: "Calf Raise", sets: 3, repetitions: 15, durationSeconds: nil, restSeconds: 45, symbol: "figure.stand")
-            ]
-        case "full":
-            [
-                FocusExercise(id: "press", name: "Bench Press", sets: 4, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "row", name: "Dumbbell Row", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "squat", name: "Goblet Squat", sets: 4, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "figure.strengthtraining.traditional"),
-                FocusExercise(id: "shoulder", name: "Shoulder Press", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "bridge", name: "Glute Bridge", sets: 3, repetitions: 12, durationSeconds: nil, restSeconds: 45, symbol: "figure.core.training"),
-                FocusExercise(id: "plank", name: "Plank", sets: 3, repetitions: nil, durationSeconds: 30, restSeconds: 45, symbol: "figure.core.training"),
-                FocusExercise(id: "curl", name: "Bicep Curl", sets: 3, repetitions: 12, durationSeconds: nil, restSeconds: 45, symbol: "dumbbell.fill"),
-                FocusExercise(id: "calf", name: "Calf Raise", sets: 3, repetitions: 15, durationSeconds: nil, restSeconds: 45, symbol: "figure.stand")
-            ]
-        default:
-            [
-                FocusExercise(id: "bench", name: "Bench Press", sets: 4, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "shoulder", name: "Shoulder Press", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "dumbbell.fill"),
-                FocusExercise(id: "lat", name: "Lat Pulldown", sets: 3, repetitions: 10, durationSeconds: nil, restSeconds: 60, symbol: "figure.strengthtraining.traditional"),
-                FocusExercise(id: "curl", name: "Bicep Curl", sets: 3, repetitions: 12, durationSeconds: nil, restSeconds: 45, symbol: "dumbbell.fill"),
-                FocusExercise(id: "tricep", name: "Tricep Extension", sets: 3, repetitions: 12, durationSeconds: nil, restSeconds: 45, symbol: "dumbbell.fill")
-            ]
-        }
     }
 }

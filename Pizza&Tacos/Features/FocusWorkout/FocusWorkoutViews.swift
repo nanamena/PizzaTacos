@@ -21,6 +21,21 @@ struct FocusWorkoutView: View {
         }
         .background(AppColors.background.ignoresSafeArea())
         .tint(AppColors.primary)
+        .navigationTitle(viewModel.routine.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.visible, for: .navigationBar, .tabBar)
+        .toolbar {
+            if viewModel.state != .completed {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { viewModel.showingEndConfirmation = true } label: {
+                        Image(systemName: "xmark")
+                            .foregroundStyle(AppColors.terracotta)
+                    }
+                    .accessibilityLabel("End workout")
+                }
+            }
+        }
         .onAppear { viewModel.startWorkout() }
         .sheet(item: $viewModel.presentedSheet) { route in
             NavigationStack {
@@ -29,8 +44,6 @@ struct FocusWorkoutView: View {
                     WorkoutExerciseListView(exercises: viewModel.exercises,
                                             completedExercises: viewModel.completedExercises,
                                             currentIndex: viewModel.exerciseIndex)
-                case .exerciseDetail(let exercise):
-                    ExerciseDetailsView(exercise: exercise)
                 }
             }
             .presentationDetents([.medium, .large])
@@ -48,54 +61,23 @@ struct FocusWorkoutView: View {
     private var activeWorkoutScreen: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 15) {
-                header
                 WorkoutSummaryCard(viewModel: viewModel)
                 WorkoutTimerView(viewModel: viewModel)
+
                 WorkoutStatsView(viewModel: viewModel)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Up Next").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                    NextExerciseCard(exercise: viewModel.nextExercise, action: viewModel.showExerciseList)
-                }
-
-                WorkoutFlowView(viewModel: viewModel)
-                actionControls
             }
             .frame(maxWidth: 600).padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 18)
             .frame(maxWidth: .infinity)
         }
         .background(AppColors.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            BottomNavigationBar(selection: .constant(.workouts), isInteractive: false)
+            actionControls
+                .frame(maxWidth: 600)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity)
+                .background(AppColors.background)
         }
-    }
-
-    // Este encabezado permite volver con confirmación y acceder al menú de la sesión.
-    private var header: some View {
-        HStack {
-            Button { viewModel.showingEndConfirmation = true } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(AppColors.text)
-                    .frame(width: 48, height: 48).background(AppColors.accent.opacity(0.42), in: Circle())
-            }
-            .accessibilityLabel("End workout and go back")
-            Spacer()
-            Text("Workout").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-            Spacer()
-            Menu {
-                Button(viewModel.state == .paused ? "Resume Workout" : "Pause Workout", systemImage: viewModel.state == .paused ? "play.fill" : "pause.fill") {
-                    if viewModel.state == .paused { viewModel.resumeWorkout() } else { viewModel.pauseWorkout() }
-                }
-                Button("Restart Workout", systemImage: "arrow.counterclockwise") { viewModel.restartWorkout() }
-                Button("End Workout", systemImage: "xmark", role: .destructive) { viewModel.showingEndConfirmation = true }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 19, weight: .bold)).foregroundStyle(AppColors.text)
-                    .frame(width: 48, height: 48)
-            }
-            .accessibilityLabel("Workout options")
-        }
-        .frame(height: 52)
     }
 
     // Este grupo muestra controles relevantes según la fase del ejercicio.
@@ -104,7 +86,7 @@ struct FocusWorkoutView: View {
         if viewModel.state == .resting {
             HStack(spacing: 11) {
                 WorkoutActionButton(symbol: "arrow.counterclockwise", label: "Restart Rest", action: viewModel.restartRest)
-                WorkoutPrimaryAction(title: "Skip Rest", symbol: "forward.end.fill", action: viewModel.skipRest)
+                WorkoutPrimaryAction(title: viewModel.restLeadsToNextExercise ? "Next Exercise" : "Next Set", symbol: "forward.end.fill", action: viewModel.skipRest)
                 WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
             }
         } else {
@@ -113,34 +95,6 @@ struct FocusWorkoutView: View {
                 WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
             }
         }
-    }
-}
-import SwiftUI
-
-// Esta fila muestra el siguiente ejercicio y abre sus detalles sin saltar el flujo.
-struct NextExerciseCard: View {
-    let exercise: FocusExercise?
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 13) {
-                Image(systemName: exercise?.symbol ?? "checkmark")
-                    .font(.system(size: 25, weight: .medium)).foregroundStyle(AppColors.primary)
-                    .frame(width: 62, height: 62).background(AppColors.accent.opacity(0.55), in: RoundedRectangle(cornerRadius: 19))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(exercise?.name ?? "Workout Complete")
-                        .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                    Text(exercise?.instructionSummary ?? "All planned exercises are complete")
-                        .font(.system(size: 13, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-                }
-                Spacer(minLength: 3)
-                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(AppColors.secondary)
-            }
-            .padding(13).appCard()
-        }
-        .buttonStyle(SoftPressStyle())
-        .accessibilityHint("View exercise details")
     }
 }
 import SwiftUI
@@ -267,10 +221,7 @@ struct WorkoutExerciseListView: View {
     var body: some View {
         List {
             ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
-                NavigationLink {
-                    ExerciseDetailsView(exercise: exercise)
-                } label: {
-                    HStack(spacing: 12) {
+                HStack(spacing: 12) {
                         Image(systemName: index < completedExercises ? "checkmark.circle.fill" : exercise.symbol)
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(index < completedExercises ? AppColors.primary : AppColors.secondary)
@@ -284,9 +235,8 @@ struct WorkoutExerciseListView: View {
                             Text("Current").font(.caption2.bold()).foregroundStyle(AppColors.primary)
                         }
                     }
-                    .padding(.vertical, 5)
-                }
-                .listRowBackground(AppColors.surface)
+                .padding(.vertical, 5)
+                .listRowBackground(AppColors.card)
             }
         }
         .scrollContentBackground(.hidden)
@@ -297,124 +247,28 @@ struct WorkoutExerciseListView: View {
     }
 }
 
-// Esta pantalla detalla el ejercicio seleccionado sin modificar el orden de la sesión.
-struct ExerciseDetailsView: View {
-    let exercise: FocusExercise
-
-    var body: some View {
-        VStack(spacing: 17) {
-            Image(systemName: exercise.symbol)
-                .font(.system(size: 38, weight: .medium)).foregroundStyle(AppColors.primary)
-                .frame(width: 82, height: 82).background(AppColors.accent.opacity(0.6), in: RoundedRectangle(cornerRadius: 25))
-            Text(exercise.name).font(.system(size: 25, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-            Text(exercise.instructionSummary).font(.system(size: 16, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-            Label("\(exercise.restSeconds) sec rest", systemImage: "stopwatch")
-                .font(.subheadline).foregroundStyle(AppColors.secondary)
-            Text("Exercise details are for reference. ModiFiT does not change your training plan.")
-                .font(.footnote).foregroundStyle(AppColors.secondaryText).multilineTextAlignment(.center)
-                .padding(.top, 6)
-        }
-        .padding(26).frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.background.ignoresSafeArea())
-        .navigationTitle("Exercise")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-import SwiftUI
-
-// Esta línea de tiempo distingue ejercicios completados, actual y próximos.
-struct WorkoutFlowView: View {
-    @ObservedObject var viewModel: FocusWorkoutViewModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack {
-                Text("Workout Flow").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                Spacer()
-                Button("See All") { viewModel.showExerciseList() }
-                    .font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.primary)
-                    .accessibilityHint("Open the full exercise list")
-            }
-
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 4) {
-                        ForEach(viewModel.exercises.indices, id: \.self) { index in
-                            if index > 0 {
-                                Rectangle().fill(index <= viewModel.completedExercises ? AppColors.primary.opacity(0.48) : AppColors.border)
-                                    .frame(width: 25, height: 3).padding(.top, 17)
-                            }
-                            flowStep(index: index)
-                                .id(index)
-                        }
-                    }
-                    .padding(.horizontal, 5).padding(.vertical, 5)
-                }
-                .onAppear { proxy.scrollTo(viewModel.exerciseIndex, anchor: .center) }
-                .onChange(of: viewModel.exerciseIndex) { _, index in
-                    withAnimation(.easeInOut(duration: 0.25)) { proxy.scrollTo(index, anchor: .center) }
-                }
-            }
-        }
-        .padding(14).appCard()
-    }
-
-    private func flowStep(index: Int) -> some View {
-        let exercise = viewModel.exercises[index]
-        let completed = index < viewModel.completedExercises
-        let current = index == viewModel.exerciseIndex && viewModel.state != .completed
-
-        return Button { viewModel.showDetails(for: exercise) } label: {
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle().fill(completed ? AppColors.primary : AppColors.accent.opacity(current ? 0.82 : 0.42))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: completed ? "checkmark" : exercise.symbol)
-                        .font(.system(size: completed ? 14 : 14, weight: .bold))
-                        .foregroundStyle(completed ? AppColors.surface : AppColors.primary)
-                }
-                Text(exercise.name)
-                    .font(.system(size: 10, weight: current ? .bold : .medium, design: .rounded))
-                    .foregroundStyle(current || completed ? AppColors.text : AppColors.secondaryText)
-                    .multilineTextAlignment(.center).lineLimit(2).frame(width: 66).frame(minHeight: 25)
-            }
-            .frame(width: 76).frame(minHeight: 79)
-            .padding(.horizontal, current ? 4 : 0)
-            .overlay {
-                if current {
-                    RoundedRectangle(cornerRadius: 19).stroke(AppColors.primary, lineWidth: 2)
-                }
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 19))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(exercise.name), \(completed ? "completed" : current ? "current exercise" : "upcoming")")
-        .accessibilityHint("View exercise details")
-    }
-}
-import SwiftUI
-
-// Esta tarjeta resume el tiempo estimado, el progreso y las calorías disponibles.
+// Esta tarjeta resume el tiempo estimado y el progreso.
 struct WorkoutStatsView: View {
     @ObservedObject var viewModel: FocusWorkoutViewModel
 
     var body: some View {
         HStack(spacing: 0) {
-            stat(symbol: "clock", title: "Time Remaining", value: viewModel.remainingWorkoutText)
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                stat(symbol: "clock", title: "Time Remaining", value: viewModel.remainingWorkoutText,
+                     valueColor: viewModel.isWorkoutEstimateExceeded ? .red : AppColors.text)
+            }
             divider
             stat(symbol: "chart.bar.fill", title: "Progress", value: viewModel.progressLabel)
-            divider
-            stat(symbol: "flame.fill", title: "Calories", value: viewModel.currentCaloriesText)
         }
         .padding(.vertical, 13).appCard()
     }
 
-    private func stat(symbol: String, title: String, value: String) -> some View {
+    private func stat(symbol: String, title: String, value: String, valueColor: Color = AppColors.text) -> some View {
         VStack(spacing: 5) {
             Image(systemName: symbol).font(.system(size: 21, weight: .semibold)).foregroundStyle(AppColors.primary)
             Text(title).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
                 .lineLimit(1).minimumScaleFactor(0.8)
-            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(valueColor)
                 .lineLimit(1).minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity)
@@ -427,146 +281,140 @@ struct WorkoutStatsView: View {
 }
 import SwiftUI
 
-// Esta tarjeta resume la rutina activa y muestra el progreso por ejercicios.
+// Esta tarjeta muestra el ejercicio activo y su progreso por sets.
 struct WorkoutSummaryCard: View {
     @ObservedObject var viewModel: FocusWorkoutViewModel
+
+    private var exerciseTarget: String {
+        if let repetitions = viewModel.currentExercise.repetitions { return "\(repetitions) reps" }
+        if let duration = viewModel.currentExercise.durationSeconds { return "\(duration) sec" }
+        return "Exercise"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(spacing: 13) {
-                Image(systemName: "dumbbell.fill")
+                Image(systemName: viewModel.currentExercise.symbol)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(AppColors.primary)
                     .frame(width: 54, height: 54)
                     .background(AppColors.accent.opacity(0.55), in: RoundedRectangle(cornerRadius: 18))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.routine.name)
+                    Text(viewModel.currentExercise.name)
                         .font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                    Text("Workout \(viewModel.currentExerciseNumber) of \(viewModel.exercises.count)")
+                    Text("\(exerciseTarget) · \(viewModel.setLabel)")
                         .font(.system(size: 14, design: .rounded)).foregroundStyle(AppColors.secondaryText)
                 }
                 Spacer(minLength: 2)
-                HStack(spacing: 6) {
-                    Image(systemName: "flame.fill").foregroundStyle(AppColors.primary)
-                    Text(viewModel.currentCaloriesText).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
-                }
-                .padding(.horizontal, 11).padding(.vertical, 10)
-                .background(AppColors.accent.opacity(0.42), in: Capsule())
-                .accessibilityLabel("Estimated calories unavailable")
             }
             HStack(spacing: 5) {
-                ForEach(viewModel.exercises.indices, id: \.self) { index in
+                ForEach(0..<max(viewModel.currentExercise.sets, 0), id: \.self) { index in
                     Capsule()
-                        .fill(index < viewModel.completedExercises ? AppColors.primary : AppColors.accent.opacity(0.65))
+                        .fill(index < viewModel.currentSet ? AppColors.primary : AppColors.accent.opacity(0.65))
                         .frame(height: 7)
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel("\(viewModel.completedExercises) of \(viewModel.exercises.count) exercises completed")
+            .accessibilityLabel(viewModel.setLabel)
         }
         .padding(15).appCard()
     }
 }
 import SwiftUI
 
-// Esta vista muestra el estado del set y el temporizador circular central.
+// Shows a randomly selected exercise animation and the current timer controls.
 struct WorkoutTimerView: View {
     @ObservedObject var viewModel: FocusWorkoutViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animation = WorkoutAnimation.all.randomElement()!
 
-    private var progress: Double {
-        guard viewModel.countdownDuration > 0 else { return 1 }
-        return min(1, max(0, Double(viewModel.remainingSeconds) / Double(viewModel.countdownDuration)))
-    }
-
-    private var timerSymbol: String {
-        viewModel.state == .resting || (viewModel.state == .paused && viewModel.remainingSeconds > 0) ? "stopwatch" : "dumbbell.fill"
-    }
-
-    private var detailLine: String {
-        if viewModel.state == .resting { return "Next: \(viewModel.currentExercise.name)" }
-        return viewModel.setLabel
+    private var timerText: String? {
+        if viewModel.isShowingRest {
+            if viewModel.restTimeExpired {
+                return String(format: "+%02d:%02d", viewModel.restOvertimeSeconds / 60, viewModel.restOvertimeSeconds % 60)
+            }
+            return String(format: "%02d:%02d", viewModel.remainingSeconds / 60, viewModel.remainingSeconds % 60)
+        }
+        if viewModel.currentExercise.durationSeconds != nil { return viewModel.currentTimeText }
+        return nil
     }
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            CircularTimerView(progress: progress) {
-                VStack(spacing: 7) {
-                    Image(systemName: timerSymbol)
-                        .font(.system(size: 34, weight: .semibold)).foregroundStyle(AppColors.primary)
-                    Text(viewModel.stateTitle)
-                        .font(.system(size: 23, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                        .multilineTextAlignment(.center)
-                    if viewModel.state == .exercising || (viewModel.state == .paused && viewModel.pausedStateIsTimedExercise) {
-                        Text(viewModel.currentExercise.name)
-                            .font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                    }
-                    Text(viewModel.currentTimeText)
-                        .font(.system(size: viewModel.currentTimeText.count > 6 ? 43 : 51, weight: .bold, design: .rounded))
-                        .monospacedDigit().tracking(-1.4).foregroundStyle(AppColors.text)
-                        .minimumScaleFactor(0.6).lineLimit(1)
-                    Text(detailLine)
-                        .font(.system(size: 14, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                    Button {
-                        if viewModel.state == .paused { viewModel.resumeWorkout() }
-                        else { viewModel.pauseWorkout() }
-                    } label: {
-                        Image(systemName: viewModel.state == .paused ? "play.fill" : "pause.fill")
-                            .font(.system(size: 20, weight: .bold)).foregroundStyle(AppColors.primary)
-                            .frame(width: 118, height: 54).background(AppColors.accent.opacity(0.48), in: Capsule())
-                    }
-                    .buttonStyle(SoftPressStyle())
-                    .accessibilityLabel(viewModel.state == .paused ? "Resume workout" : "Pause workout")
-                    .padding(.top, 3)
-                }
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 10) {
+            TimelineView(.periodic(from: .now, by: 1.5)) { context in
+                let index = reduceMotion || viewModel.state == .paused
+                    ? 0 : Int(context.date.timeIntervalSinceReferenceDate / 1.5) % 2
+                let displayedAnimation = viewModel.isShowingRest
+                    ? (viewModel.restTimeExpired ? WorkoutAnimation.restOvertime : WorkoutAnimation.rest)
+                    : animation
+                displayedAnimation.frame(index)
+                .frame(maxWidth: 320)
+                .aspectRatio(1, contentMode: .fit)
+                .accessibilityLabel("Workout animation")
             }
-            .frame(maxWidth: 370)
-            .frame(maxWidth: .infinity)
 
-            MascotWorkoutView(accessibilityDescription: mascotDescription)
-                .frame(width: 112, height: 138)
-                .offset(x: -3, y: 8)
-                .accessibilityHidden(false)
+            if !viewModel.isShowingRest {
+                Group {
+                    if viewModel.state == .paused || viewModel.elapsedTimerStart == nil {
+                        Text(viewModel.elapsedWorkoutText)
+                    } else if let start = viewModel.elapsedTimerStart {
+                        Text(start, style: .timer)
+                    }
+                }
+                .font(.system(.largeTitle, design: .rounded, weight: .medium))
+                .monospacedDigit().foregroundStyle(AppColors.text)
+                .lineLimit(1).minimumScaleFactor(0.5)
+            }
+
+            if let timerText {
+                Text(viewModel.stateTitle)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppColors.secondaryText)
+                Text(timerText)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .monospacedDigit().foregroundStyle(viewModel.isShowingRest && viewModel.restTimeExpired ? Color.red : AppColors.text)
+            }
         }
-        .frame(maxWidth: 390)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 2)
-    }
-
-    private var mascotDescription: String {
-        switch viewModel.state {
-        case .resting, .paused: "ModiFiT mascot resting beside the timer"
-        case .exercising, .ready: "ModiFiT mascot cheering during the workout"
-        case .completed: "ModiFiT mascot celebrating the workout"
+        .onChange(of: viewModel.exerciseIndex) { _, _ in
+            animation = WorkoutAnimation.all.randomElement()!
         }
     }
 }
 
-// Este anillo usa un trazo sólido y comunica el tiempo restante sin degradados.
-struct CircularTimerView<Content: View>: View {
-    let progress: Double
-    @ViewBuilder let content: Content
+private struct WorkoutAnimation {
+    let first: String
+    let second: String?
 
-    init(progress: Double, @ViewBuilder content: () -> Content) {
-        self.progress = progress
-        self.content = content()
-    }
+    static let rest = WorkoutAnimation(first: "WorkoutAnimationRest", second: nil)
+    static let restOvertime = WorkoutAnimation(first: "WorkoutAnimationRestOvertime", second: nil)
 
-    var body: some View {
-        ZStack {
-            Circle().stroke(AppColors.accent.opacity(0.62), lineWidth: 15)
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(AppColors.primary, style: StrokeStyle(lineWidth: 15, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.linear(duration: 0.2), value: progress)
-            content.padding(32)
+    static let all: [WorkoutAnimation] = [
+        .init(first: "WorkoutAnimationSquat1", second: "WorkoutAnimationSquat2"),
+        .init(first: "WorkoutAnimationLat1", second: "WorkoutAnimationLat2"),
+        .init(first: "WorkoutAnimationBench", second: nil),
+        .init(first: "WorkoutAnimationCurl", second: nil),
+        .init(first: "WorkoutAnimationRow", second: nil),
+        .init(first: "WorkoutAnimationTriceps", second: nil),
+        .init(first: "WorkoutAnimationLeg", second: nil),
+        .init(first: "WorkoutAnimationPlank", second: nil),
+        .init(first: "WorkoutAnimationTreadmill", second: nil)
+    ]
+
+    @ViewBuilder
+    func frame(_ index: Int) -> some View {
+        if let second {
+            Image(index == 0 ? first : second)
+                .resizable().scaledToFit()
+        } else {
+            GeometryReader { geometry in
+                Image(first)
+                    .resizable().scaledToFit()
+                    .frame(width: geometry.size.width * 2, height: geometry.size.height)
+                    .offset(x: index == 0 ? 0 : -geometry.size.width)
+            }
+            .clipped()
         }
-        .padding(8)
-        .aspectRatio(1, contentMode: .fit)
-        .accessibilityElement(children: .contain)
     }
 }
 import SwiftUI

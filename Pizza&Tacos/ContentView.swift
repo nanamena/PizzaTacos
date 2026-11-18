@@ -2,20 +2,21 @@ import SwiftUI
 
 // ContentView enruta las pestañas y comparte los servicios persistentes entre funciones.
 struct ContentView: View {
+    @State private var selectedTab: AppTab = .workouts
     @StateObject private var viewModel = WorkoutsViewModel()
     @StateObject private var themeStore = AppThemeStore()
-    @StateObject private var profileStore = UserProfileStore()
     @StateObject private var historyStore = WorkoutHistoryStore()
 
     var body: some View {
-        Group {
-            switch viewModel.selectedTab {
-            case .workouts:
-                WorkoutsView(viewModel: viewModel)
-            case .progress:
-                ProgressView(historyStore: historyStore, selectedTab: $viewModel.selectedTab)
-            case .settings:
-                SettingsView(themeStore: themeStore, profileStore: profileStore, selectedTab: $viewModel.selectedTab)
+        TabView(selection: $selectedTab) {
+            Tab("Workouts", systemImage: "dumbbell.fill", value: AppTab.workouts) {
+                WorkoutsView(viewModel: viewModel, historyStore: historyStore)
+            }
+            Tab("Progress", systemImage: "chart.bar.fill", value: AppTab.progress) {
+                ProgressView(historyStore: historyStore)
+            }
+            Tab("Settings", systemImage: "gearshape.fill", value: AppTab.settings) {
+                SettingsView(themeStore: themeStore)
             }
         }
         .id(themeStore.viewIdentity)
@@ -24,11 +25,6 @@ struct ContentView: View {
         .sheet(isPresented: $viewModel.isAddWorkoutPresented) {
             AddWorkoutSheet()
                 .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(item: $viewModel.selectedRoutine) { routine in
-            RoutineDetailSheet(routine: routine, activeWorkout: $viewModel.activeWorkout, historyStore: historyStore)
-                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
     }

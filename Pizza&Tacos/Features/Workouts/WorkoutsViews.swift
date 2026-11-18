@@ -3,57 +3,54 @@ import SwiftUI
 // Esta vista compone la pantalla inicial Workouts con el diseño de referencia ModiFiT.
 struct WorkoutsView: View {
     @ObservedObject var viewModel: WorkoutsViewModel
+    let historyStore: WorkoutHistoryStore
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 25) {
-                WorkoutHeaderView(userName: viewModel.userName, onAdd: viewModel.presentAddWorkout)
-                TodaysWorkoutCard(workout: viewModel.todayWorkout)
-                RoutinesSection(routines: viewModel.routines, onSelect: viewModel.select)
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 25) {
+                    WorkoutHeaderView(onAdd: viewModel.presentAddWorkout)
+                    TodaysWorkoutCard(workout: viewModel.todayWorkout)
+                    RoutinesSection(routines: viewModel.routines)
+                }
+                .frame(maxWidth: 620)
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+                .padding(.bottom, 24)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: 620)
-            .padding(.horizontal, 22)
-            .padding(.top, 18)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
-        }
-        .background(AppColors.background.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            BottomNavigationBar(selection: Binding(
-                get: { viewModel.selectedTab },
-                set: { viewModel.select($0) }
-            ))
+            .background(AppColors.background.ignoresSafeArea())
+            .navigationTitle("Workouts")
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: Routine.self) { routine in
+                TrainingScreen(routine: routine, historyStore: historyStore)
+            }
         }
     }
 }
 
-// Este encabezado muestra el saludo personalizado, el título y la acción de añadir rutina.
+// Este encabezado muestra el título y la acción de añadir rutina.
 private struct WorkoutHeaderView: View {
-    let userName: String
     let onAdd: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Hello, \(userName)! 👋")
-                    .font(.system(size: 17, weight: .regular, design: .rounded))
-                    .foregroundStyle(AppColors.text)
-                Text("Workouts")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
-                    .tracking(-0.8)
-                    .foregroundStyle(AppColors.text)
-            }
+            Text("Workouts")
+                .font(.system(size: 38, weight: .bold, design: .rounded))
+                .tracking(-0.8)
+                .foregroundStyle(AppColors.text)
             Spacer(minLength: 0)
-            Button {
-                onAdd()
-            } label: {
+            Button(action: onAdd) {
                 Image(systemName: "plus")
-                    .font(.system(size: 25, weight: .semibold))
-                    .foregroundStyle(AppColors.primary)
-                    .frame(width: 58, height: 58)
-                    .background(AppColors.accent.opacity(0.58), in: Circle())
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(AppColors.terracotta)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .buttonStyle(SoftPressStyle())
+            .buttonStyle(.glass)
+            .buttonBorderShape(.circle)
+            .buttonSizing(.flexible)
+            .controlSize(.small)
+            .frame(width: 44, height: 44)
             .accessibilityLabel("Add workout")
         }
     }
@@ -89,7 +86,6 @@ private struct TodaysWorkoutCard: View {
 // Esta sección muestra las rutinas de ejemplo en tarjetas accesibles y seleccionables.
 private struct RoutinesSection: View {
     let routines: [Routine]
-    let onSelect: (Routine) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
@@ -99,9 +95,9 @@ private struct RoutinesSection: View {
                 .foregroundStyle(AppColors.text)
 
             ForEach(routines) { routine in
-                Button { onSelect(routine) } label: { RoutineRowView(routine: routine) }
+                NavigationLink(value: routine) { RoutineRowView(routine: routine) }
                     .buttonStyle(SoftPressStyle())
-                    .accessibilityHint("Show routine details")
+                    .accessibilityHint("Choose exercises for this routine")
             }
         }
     }
@@ -201,44 +197,5 @@ private struct AddWorkoutDestination: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.background.ignoresSafeArea())
         .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// Esta hoja muestra un resumen breve al abrir una rutina desde la lista.
-struct RoutineDetailSheet: View {
-    let routine: Routine
-    @Binding var activeWorkout: Routine?
-    let historyStore: WorkoutHistoryStore
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 15) {
-            Image(systemName: routine.symbol).font(.system(size: 36, weight: .medium)).foregroundStyle(AppColors.primary)
-                .frame(width: 76, height: 76).background(AppColors.accent.opacity(0.63), in: Circle())
-            Text(routine.name).font(.system(size: 25, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-            Text("\(routine.exerciseCount) exercises · ~ \(routine.estimatedMinutes) min")
-                .font(.subheadline).foregroundStyle(AppColors.secondaryText)
-            Text("Your workout is ready when you are.")
-                .font(.footnote).foregroundStyle(AppColors.secondaryText).multilineTextAlignment(.center)
-            Button {
-                activeWorkout = routine
-            } label: {
-                Label("Start Workout", systemImage: "play.fill")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, minHeight: 54)
-                    .background(AppColors.primary, in: Capsule())
-            }
-            .buttonStyle(.plain)
-            Button("Done") { dismiss() }
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(AppColors.primary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppColors.background.ignoresSafeArea())
-        .padding(24)
-        .fullScreenCover(item: $activeWorkout) { routine in
-            FocusWorkoutView(routine: routine, historyStore: historyStore)
-        }
     }
 }

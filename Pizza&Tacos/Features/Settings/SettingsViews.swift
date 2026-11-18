@@ -15,7 +15,7 @@ struct AboutSettingsView: View {
 
                 VStack(alignment: .leading, spacing: 9) {
                     Text("Privacy").font(.headline).foregroundStyle(AppColors.text)
-                    Text("Your profile and preferences are stored locally on this device. Permissions are requested only when you enable the related feature.")
+                    Text("Your preferences are stored locally on this device. Permissions are requested only when you enable the related feature.")
                         .font(.subheadline).foregroundStyle(AppColors.secondaryText)
                 }.padding(17).settingsCardStyle()
 
@@ -232,115 +232,10 @@ private struct SettingsDivider: View {
         Rectangle().fill(AppColors.border).frame(height: 1).padding(.leading, 55)
     }
 }
-import SwiftUI
-
-// Esta vista permite editar y guardar la información de perfil en el dispositivo.
-struct ProfileView: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: ProfileViewModel
-
-    init(profileStore: UserProfileStore) {
-        _viewModel = StateObject(wrappedValue: ProfileViewModel(profileStore: profileStore))
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 60)).symbolRenderingMode(.palette)
-                        .foregroundStyle(AppColors.primary, AppColors.accent)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Profile details").font(.headline).foregroundStyle(AppColors.text)
-                        Text("Your information stays on this device.").font(.caption).foregroundStyle(AppColors.secondaryText)
-                    }
-                }
-                .padding(16).frame(maxWidth: .infinity, alignment: .leading).settingsCardStyle()
-
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Personal Information").font(.headline).foregroundStyle(AppColors.text)
-                    ProfileInput(title: "Full name", placeholder: "Your name", text: $viewModel.fullName)
-                    ProfileInput(title: "Age", placeholder: "Years", text: $viewModel.age, keyboard: .numberPad)
-                    ProfileInput(title: "Weight", placeholder: "kg", text: $viewModel.weight, keyboard: .decimalPad)
-                    ProfileInput(title: "Height", placeholder: "cm", text: $viewModel.height, keyboard: .decimalPad)
-                }
-                .padding(17).settingsCardStyle()
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Training Preferences").font(.headline).foregroundStyle(AppColors.text)
-                    Picker("Fitness goal", selection: $viewModel.fitnessGoal) {
-                        ForEach(["General fitness", "Build strength", "Improve endurance", "Increase flexibility"], id: \.self) { Text($0) }
-                    }
-                    .tint(AppColors.primary)
-                    Picker("Training level", selection: $viewModel.trainingLevel) {
-                        ForEach(["Beginner", "Intermediate", "Advanced"], id: \.self) { Text($0) }
-                    }
-                    .tint(AppColors.primary)
-                }
-                .padding(17).settingsCardStyle()
-
-                Button {
-                    viewModel.saveProfile()
-                } label: {
-                    Text("Save Profile")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(AppColors.surface)
-                        .frame(maxWidth: .infinity, minHeight: 54)
-                        .background(AppColors.primary, in: Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-            .frame(maxWidth: 620)
-            .padding(20).frame(maxWidth: .infinity)
-        }
-        .background(AppColors.background.ignoresSafeArea())
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.inline)
-        .tint(AppColors.primary)
-        .alert("Profile", isPresented: alertBinding) {
-            Button("OK") {
-                let wasSaved = viewModel.didSave
-                viewModel.validationMessage = nil
-                viewModel.didSave = false
-                if wasSaved { dismiss() }
-            }
-        } message: {
-            Text(viewModel.didSave ? "Your profile has been saved." : (viewModel.validationMessage ?? ""))
-        }
-    }
-
-    private var alertBinding: Binding<Bool> {
-        Binding(get: { viewModel.validationMessage != nil || viewModel.didSave },
-                set: { if !$0 { viewModel.validationMessage = nil; viewModel.didSave = false } })
-    }
-}
-
-// Este campo alinea una etiqueta con su entrada y admite teclado numérico cuando se necesita.
-private struct ProfileInput: View {
-    let title: String
-    let placeholder: String
-    @Binding var text: String
-    var keyboard: UIKeyboardType = .default
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 13, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-            TextField(placeholder, text: $text)
-                .font(.system(size: 16, design: .rounded))
-                .keyboardType(keyboard)
-                .padding(.horizontal, 12).frame(minHeight: 44)
-                .background(AppColors.background, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppColors.border, lineWidth: 1))
-        }
-    }
-}
-import SwiftUI
 
 // Esta vista presenta el panel Settings y enlaza las preferencias con sus destinos.
 struct SettingsView: View {
     @ObservedObject var themeStore: AppThemeStore
-    @ObservedObject var profileStore: UserProfileStore
-    @Binding var selectedTab: AppTab
     @StateObject private var viewModel = SettingsViewModel()
     @StateObject private var permissionsViewModel = PermissionsViewModel()
 
@@ -357,11 +252,6 @@ struct SettingsView: View {
                             .foregroundStyle(AppColors.secondaryText)
                     }
                     .padding(.bottom, 2)
-
-                    NavigationLink { ProfileView(profileStore: profileStore) } label: {
-                        ProfileSummaryCard(profile: profileStore.profile)
-                    }
-                    .buttonStyle(.plain)
 
                     AppearanceSettingsCard(themeStore: themeStore)
 
@@ -388,38 +278,9 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(AppColors.background.ignoresSafeArea())
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                BottomNavigationBar(selection: $selectedTab)
-            }
             .toolbar(.hidden, for: .navigationBar)
         }
         .tint(AppColors.primary)
-    }
-}
-
-// Esta tarjeta resume el perfil y abre su formulario de edición.
-private struct ProfileSummaryCard: View {
-    let profile: UserProfile
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 49, weight: .regular))
-                .symbolRenderingMode(.palette)
-                .foregroundStyle(AppColors.primary, AppColors.accent)
-                .frame(width: 62, height: 62)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(profile.fullName.isEmpty ? "Linda" : profile.fullName)
-                    .font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                Text("View and edit your profile")
-                    .font(.system(size: 13, weight: .regular, design: .rounded)).foregroundStyle(AppColors.secondaryText)
-            }
-            Spacer(minLength: 4)
-            Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(AppColors.text)
-        }
-        .padding(.horizontal, 15).padding(.vertical, 12)
-        .frame(maxWidth: .infinity, minHeight: 88)
-        .settingsCardStyle()
     }
 }
 
@@ -561,10 +422,10 @@ struct SettingsIcon: View {
     }
 }
 
-// Este modificador mantiene consistentes las tarjetas blancas, sus bordes y sus sombras.
+// Este modificador mantiene consistentes las tarjetas, sus bordes y sus sombras.
 extension View {
     func settingsCardStyle() -> some View {
-        background(AppColors.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        background(AppColors.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(AppColors.border, lineWidth: 0.8))
             .shadow(color: AppColors.text.opacity(0.055), radius: 10, x: 0, y: 4)
     }

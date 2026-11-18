@@ -3,11 +3,9 @@ import SwiftUI
 // Esta pantalla presenta tendencias calculadas únicamente desde sesiones finalizadas.
 struct ProgressView: View {
     @StateObject private var viewModel: ProgressViewModel
-    @Binding var selectedTab: AppTab
 
-    init(historyStore: WorkoutHistoryStore, selectedTab: Binding<AppTab>) {
+    init(historyStore: WorkoutHistoryStore) {
         _viewModel = StateObject(wrappedValue: ProgressViewModel(historyStore: historyStore))
-        _selectedTab = selectedTab
     }
 
     var body: some View {
@@ -29,9 +27,6 @@ struct ProgressView: View {
             .frame(maxWidth: 620).padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 18).frame(maxWidth: .infinity)
         }
         .background(AppColors.background.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            BottomNavigationBar(selection: $selectedTab)
-        }
     }
 
     private var periodSelector: some View {

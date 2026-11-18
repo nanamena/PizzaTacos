@@ -1,11 +1,13 @@
 import SwiftUI
 import UIKit
 
-// Esta estructura resuelve colores de la paleta activa y adapta sus superficies al modo oscuro.
+// Esta estructura resuelve los colores de la app y los adapta al modo oscuro.
 enum AppColors {
     static var background: Color { dynamic(.background) }
     static var surface: Color { dynamic(.surface) }
+    static var card: Color { surface }
     static var primary: Color { dynamic(.primary) }
+    static var terracotta: Color { dynamic(.primary, palette: .terracotta) }
     static var secondary: Color { dynamic(.secondary) }
     static var accent: Color { dynamic(.accent) }
     static var text: Color { dynamic(.text) }
@@ -13,12 +15,12 @@ enum AppColors {
     static var border: Color { dynamic(.border) }
 
     // Esta función crea un color que vuelve a consultar la paleta cuando cambia el tema.
-    private static func dynamic(_ role: PaletteRole) -> Color {
+    private static func dynamic(_ role: PaletteRole, palette: AppPalette? = nil) -> Color {
         Color(uiColor: UIColor { traits in
             let savedID = UserDefaults.standard.string(forKey: AppThemeStore.paletteKey) ?? AppPalette.terracotta.rawValue
-            let palette = AppPalette(rawValue: savedID) ?? .terracotta
+            let resolvedPalette = palette ?? AppPalette(rawValue: savedID) ?? .terracotta
             let darkMode = traits.userInterfaceStyle == .dark
-            let hex = palette.colors.value(for: role, darkMode: darkMode)
+            let hex = resolvedPalette.colors.value(for: role, darkMode: darkMode)
             return UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
                            green: CGFloat((hex >> 8) & 0xFF) / 255,
                            blue: CGFloat(hex & 0xFF) / 255,
