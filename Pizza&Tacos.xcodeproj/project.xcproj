@@ -16,7 +16,7 @@
       "kind": "group",
       "name": "Products",
       "children": [
-        { "path": "<PRODUCTS>/Pizza&Tacos.app", "id": "16ABF0DC30A651670060BE22", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/ModiFiT.app", "id": "16ABF0DC30A651670060BE22", "type": "wrapper.application", "index": false },
       ],
     },
   ],
@@ -24,7 +24,7 @@
     {
       "name": "Pizza&Tacos",
       "id": "16ABF0DB30A651670060BE22",
-      "product": "Products/Pizza&Tacos.app",
+      "product": "Products/ModiFiT.app",
       "product-type": "application",
       "build-phases": [
         "compile-sources",
@@ -50,6 +50,7 @@
         "INFOPLIST_KEY_UILaunchScreen_Generation": "YES",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad": "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight",
         "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone": "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight",
+        "IPHONEOS_DEPLOYMENT_TARGET": "26.6",
         "LD_RUNPATH_SEARCH_PATHS": [
           "$(inherited)",
           "@executable_path/Frameworks",
