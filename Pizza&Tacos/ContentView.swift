@@ -21,7 +21,6 @@ struct ContentView: View {
                 SettingsView(themeStore: themeStore, workoutPreferences: workoutPreferences)
             }
         }
-        .id(themeStore.viewIdentity)
         .tint(AppColors.primary)
         .preferredColorScheme(themeStore.preferredColorScheme)
         .sheet(isPresented: $viewModel.isAddWorkoutPresented) {

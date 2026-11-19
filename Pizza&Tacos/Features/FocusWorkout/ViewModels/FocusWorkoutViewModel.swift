@@ -246,14 +246,16 @@ final class FocusWorkoutViewModel: ObservableObject {
             while !Task.isCancelled {
                 guard let self, let deadline = self.countdownDeadline else { return }
                 let secondsLeft = max(0, Int(ceil(deadline.timeIntervalSinceNow)))
-                self.remainingSeconds = secondsLeft
+                if self.remainingSeconds != secondsLeft {
+                    self.remainingSeconds = secondsLeft
+                }
                 if secondsLeft == 0 {
                     self.timerTask = nil
                     self.countdownDeadline = nil
                     self.countdownFinished(phase: phase, expiredAt: deadline)
                     return
                 }
-                try? await Task.sleep(for: .milliseconds(200))
+                try? await Task.sleep(for: .milliseconds(250))
             }
         }
     }
@@ -274,8 +276,11 @@ final class FocusWorkoutViewModel: ObservableObject {
         timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, self.state == .resting, let started = self.restOvertimeStartedAt else { return }
-                self.restOvertimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
-                try? await Task.sleep(for: .milliseconds(200))
+                let overtimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
+                if self.restOvertimeSeconds != overtimeSeconds {
+                    self.restOvertimeSeconds = overtimeSeconds
+                }
+                try? await Task.sleep(for: .milliseconds(250))
             }
         }
     }

@@ -32,7 +32,7 @@ struct FocusWorkoutView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { viewModel.showingEndConfirmation = true } label: {
                         Image(systemName: "xmark")
-                            .foregroundStyle(AppColors.terracotta)
+                            .foregroundStyle(AppColors.primary)
                     }
                     .accessibilityLabel("End workout")
                     .confirmationDialog("End this workout?", isPresented: $viewModel.showingEndConfirmation, titleVisibility: .visible) {

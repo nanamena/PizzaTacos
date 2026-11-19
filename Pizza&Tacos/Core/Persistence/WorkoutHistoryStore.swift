@@ -6,13 +6,26 @@ import Combine
 final class WorkoutHistoryStore: ObservableObject {
     @Published private(set) var records: [WorkoutHistoryRecord] = []
     private let storageKey = "modifit.workoutHistory.v1"
+    private let persistenceQueue = DispatchQueue(label: "com.modifit.workout-history-persistence")
+    private var hasLocalChanges = false
 
-    init() { load() }
+    init() {
+        let storageKey = storageKey
+        persistenceQueue.async { [weak self] in
+            guard let data = UserDefaults.standard.data(forKey: storageKey),
+                  let decoded = try? JSONDecoder().decode([WorkoutHistoryRecord].self, from: data) else { return }
+            Task { @MainActor [weak self] in
+                guard let self, !self.hasLocalChanges else { return }
+                self.records = decoded
+            }
+        }
+    }
 
     // Registra una sesión finalizada y evita duplicarla si se recibe dos veces el mismo identificador.
     func record(_ record: WorkoutHistoryRecord) {
         guard !records.contains(where: { $0.id == record.id }) else { return }
         records.append(record)
+        hasLocalChanges = true
         persist()
     }
 
@@ -20,17 +33,16 @@ final class WorkoutHistoryStore: ObservableObject {
     func saveFeeling(_ feeling: WorkoutFeeling, for id: UUID) {
         guard let index = records.firstIndex(where: { $0.id == id }) else { return }
         records[index].feeling = feeling
+        hasLocalChanges = true
         persist()
     }
 
-    private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode([WorkoutHistoryRecord].self, from: data) else { return }
-        records = decoded
-    }
-
     private func persist() {
-        guard let data = try? JSONEncoder().encode(records) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        let records = records
+        let storageKey = storageKey
+        persistenceQueue.async {
+            guard let data = try? JSONEncoder().encode(records) else { return }
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
     }
 }

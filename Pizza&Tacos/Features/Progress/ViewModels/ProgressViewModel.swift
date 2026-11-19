@@ -55,7 +55,10 @@ final class ProgressViewModel: ObservableObject {
     }
 
     var records: [WorkoutHistoryRecord] {
-        historyStore.records.filter { $0.completedAt >= range.start && $0.completedAt < range.end }
+        let currentRange = range
+        return historyStore.records.filter {
+            $0.completedAt >= currentRange.start && $0.completedAt < currentRange.end
+        }
     }
     var activeDayCount: Int {
         Set(records.map { calendar.startOfDay(for: $0.completedAt) }).count

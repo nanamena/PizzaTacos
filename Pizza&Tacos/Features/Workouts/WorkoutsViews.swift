@@ -46,14 +46,16 @@ struct WorkoutsView: View {
 
     private var visibleRoutines: [Routine] {
         let routines = workoutLibrary.sampleRoutines + workoutLibrary.standaloneRoutines
+        let lastUsedDates = Dictionary(grouping: historyStore.records, by: \.routineID)
+            .compactMapValues { $0.map(\.completedAt).max() }
         return routines.filter { routine in
             let matchesDuration = durationFilter.includes(routine.estimatedMinutes)
             return matchesDuration && (searchText.isEmpty || routine.name.localizedCaseInsensitiveContains(searchText))
         }.sorted { first, second in
             if sortOrder == .duration { return first.estimatedMinutes < second.estimatedMinutes }
             if sortOrder == .lastUsed {
-                let firstDate = historyStore.records.filter { $0.routineID == first.id }.map(\.completedAt).max() ?? .distantPast
-                let secondDate = historyStore.records.filter { $0.routineID == second.id }.map(\.completedAt).max() ?? .distantPast
+                let firstDate = lastUsedDates[first.id] ?? .distantPast
+                let secondDate = lastUsedDates[second.id] ?? .distantPast
                 return firstDate > secondDate
             }
             return first.createdAt > second.createdAt
@@ -165,7 +167,7 @@ private struct WorkoutHeaderView: View {
             Button(action: onAdd) {
                 Image(systemName: "plus")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(AppColors.terracotta)
+                    .foregroundStyle(AppColors.primary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .buttonStyle(.glass)
@@ -286,8 +288,10 @@ private struct RoutinesSection: View {
                     ContentUnavailableView.search(text: searchText)
                 }
             } else {
-                ForEach(routines) { routine in
-                    RoutineRowView(routine: routine, onEdit: { onEdit(routine) }, onDelete: { onDelete(routine) })
+                LazyVStack(spacing: 12) {
+                    ForEach(routines) { routine in
+                        RoutineRowView(routine: routine, onEdit: { onEdit(routine) }, onDelete: { onDelete(routine) })
+                    }
                 }
             }
         }
@@ -323,15 +327,24 @@ private struct RoutineRowView: View {
             .buttonStyle(SoftPressStyle())
             .accessibilityHint("Choose exercises for this routine")
 
-            Menu("Actions for \(routine.name)", systemImage: "ellipsis") {
+            Menu {
                 Button("Edit", systemImage: "pencil", action: onEdit)
                 Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.title3)
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 44, height: 44)
+                    .background {
+                        Circle()
+                            .fill(AppColors.primary.opacity(0.14))
+                            .frame(width: 36, height: 36)
+                    }
+                    .contentShape(Rectangle())
             }
-            .labelStyle(.iconOnly)
-            .font(.title3)
-            .foregroundStyle(AppColors.coral)
-            .frame(width: 44, height: 44)
+            .accessibilityLabel("Actions for \(routine.name)")
             .accessibilityHint("Edit or delete this routine")
+            .zIndex(1)
         }
         .padding(.leading, 17).padding(.trailing, 12).padding(.vertical, 17)
         .frame(maxWidth: .infinity, minHeight: 100)

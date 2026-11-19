@@ -50,15 +50,24 @@ final class WorkoutLibraryStore: ObservableObject {
     @Published private(set) var isPlanActive = false
 
     private let storageKey = "modifit.workoutLibrary.v1"
+    private let persistenceQueue = DispatchQueue(label: "com.modifit.workout-library-persistence")
+    private var hasLocalChanges = false
 
     init() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let saved = try? JSONDecoder().decode(SavedWorkoutLibrary.self, from: data) else { return }
-        standaloneRoutines = saved.standaloneRoutines
-        sampleRoutines = saved.sampleRoutines
-        activePlan = saved.plan
-        nextDayIndex = saved.nextDayIndex
-        isPlanActive = saved.isPlanActive
+        let storageKey = storageKey
+        persistenceQueue.async { [weak self] in
+            let data = UserDefaults.standard.data(forKey: storageKey)
+            Task { @MainActor [weak self] in
+                guard let data,
+                      let saved = try? JSONDecoder().decode(SavedWorkoutLibrary.self, from: data) else { return }
+                guard let self, !self.hasLocalChanges else { return }
+                self.standaloneRoutines = saved.standaloneRoutines
+                self.sampleRoutines = saved.sampleRoutines
+                self.activePlan = saved.plan
+                self.nextDayIndex = saved.nextDayIndex
+                self.isPlanActive = saved.isPlanActive
+            }
+        }
     }
 
     var featuredWorkout: FeaturedWorkout? {
@@ -124,7 +133,11 @@ final class WorkoutLibraryStore: ObservableObject {
         let saved = SavedWorkoutLibrary(standaloneRoutines: standaloneRoutines, sampleRoutines: sampleRoutines,
                                         plan: activePlan,
                                         nextDayIndex: nextDayIndex, isPlanActive: isPlanActive)
+        let storageKey = storageKey
+        hasLocalChanges = true
         guard let data = try? JSONEncoder().encode(saved) else { return }
-        UserDefaults.standard.set(data, forKey: storageKey)
+        persistenceQueue.async {
+            UserDefaults.standard.set(data, forKey: storageKey)
+        }
     }
 }

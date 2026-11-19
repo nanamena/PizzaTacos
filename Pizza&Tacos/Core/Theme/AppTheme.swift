@@ -90,7 +90,6 @@ final class AppThemeStore: ObservableObject {
     }
 
     var preferredColorScheme: ColorScheme? { appearance.colorScheme }
-    var viewIdentity: String { "\(appearance.rawValue)-\(palette.rawValue)" }
 }
 
 // Esta enumeración convierte la preferencia guardada al esquema que entiende SwiftUI.
