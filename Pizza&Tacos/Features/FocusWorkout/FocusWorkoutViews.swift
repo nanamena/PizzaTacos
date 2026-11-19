@@ -343,6 +343,7 @@ struct WorkoutTimerView: View {
     @State private var animationStartedAt = Date.now
 
     private static let animationFrameDuration = 0.8
+    private static let timerFontSize: CGFloat = 34
 
     private var timerText: String? {
         if viewModel.isShowingRest {
@@ -379,9 +380,9 @@ struct WorkoutTimerView: View {
                         Text(start, style: .timer)
                     }
                 }
-                .font(.system(.largeTitle, design: .rounded, weight: .medium))
+                .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
                 .monospacedDigit().foregroundStyle(AppColors.text)
-                .lineLimit(1).minimumScaleFactor(0.5)
+                .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
             }
 
             if let timerText {
@@ -389,8 +390,9 @@ struct WorkoutTimerView: View {
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(AppColors.secondaryText)
                 Text(timerText)
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
                     .monospacedDigit().foregroundStyle(viewModel.isShowingRest && viewModel.restTimeExpired ? Color.red : AppColors.text)
+                    .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
             }
         }
         .frame(maxWidth: .infinity)
