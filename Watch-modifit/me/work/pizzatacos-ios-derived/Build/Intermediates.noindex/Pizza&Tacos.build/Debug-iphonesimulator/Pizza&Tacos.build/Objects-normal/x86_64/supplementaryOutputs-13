@@ -1,0 +1,23 @@
+{
+  "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/ContentView.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ContentView.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ContentView.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ContentView.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ContentView.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/TrainingScreen.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/TrainingScreen.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/TrainingScreen.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/TrainingScreen.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/TrainingScreen.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/TrainingScreen.swiftdeps"
+  }
+}

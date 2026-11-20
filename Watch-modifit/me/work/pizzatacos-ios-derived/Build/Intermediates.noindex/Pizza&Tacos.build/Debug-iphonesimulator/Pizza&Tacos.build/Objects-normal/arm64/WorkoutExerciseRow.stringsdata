@@ -1,0 +1,32 @@
+{
+  "source": "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/Workouts/Editor/WorkoutExerciseRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Edit exercise",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld sets · %llds · %llds rest",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 28
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld sets · %lld reps · %llds rest",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 29
+        }
+      }
+    ]
+  },
+  "version": 1
+}

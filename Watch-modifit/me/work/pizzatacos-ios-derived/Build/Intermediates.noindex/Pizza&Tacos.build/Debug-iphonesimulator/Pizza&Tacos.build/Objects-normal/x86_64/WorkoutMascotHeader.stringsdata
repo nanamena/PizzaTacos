@@ -1,0 +1,24 @@
+{
+  "source": "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/Workouts/Editor/WorkoutMascotHeader.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Make it your workout.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 13
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add your exercises and we'll estimate the time for you.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 14
+        }
+      }
+    ]
+  },
+  "version": 1
+}

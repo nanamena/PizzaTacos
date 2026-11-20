@@ -1,0 +1,80 @@
+{
+  "source": "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/TrainingScreen.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Exercises",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 24
+        }
+      },
+      {
+        "comment": "",
+        "key": "Deselect All",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Select All",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Estimated time",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 77
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, %@, %lld seconds rest, %lld minutes",
+        "location": {
+          "startingColumn": 13,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld min",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %llds rest",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start Workout",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 140
+        }
+      }
+    ]
+  },
+  "version": 1
+}

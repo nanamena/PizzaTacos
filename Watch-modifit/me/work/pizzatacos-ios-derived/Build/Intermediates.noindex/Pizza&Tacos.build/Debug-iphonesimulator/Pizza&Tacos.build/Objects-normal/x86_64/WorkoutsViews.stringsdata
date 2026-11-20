@@ -1,0 +1,360 @@
+{
+  "source": "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/Workouts/WorkoutsViews.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Workouts",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 87
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search routines",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 89
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete %@?",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 113
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 114
+        }
+      },
+      {
+        "comment": "",
+        "key": "This removes the routine from your library. Completed workouts stay in your history.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pause",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Resume",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 149
+        }
+      },
+      {
+        "comment": "",
+        "key": "Training Plan",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 143
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Paused",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 145
+        }
+      },
+      {
+        "comment": "",
+        "key": "Workouts",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 162
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add workout",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 178
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start workout",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 193
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use + to add a workout or training plan.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 213
+        }
+      },
+      {
+        "comment": "",
+        "key": "Latest Workout",
+        "location": {
+          "startingColumn": 58,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next Workout",
+        "location": {
+          "startingColumn": 77,
+          "startingLine": 202
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld exercises",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "~ %lld min (estimated)",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 211
+        }
+      },
+      {
+        "comment": "",
+        "key": "Duration filter: %@",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 275
+        }
+      },
+      {
+        "comment": "",
+        "key": "Routines",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 244
+        }
+      },
+      {
+        "comment": "",
+        "key": "Filter and Sort",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose a duration filter and sort order for routines",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sort By",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "Duration",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 257
+        }
+      },
+      {
+        "comment": "",
+        "key": "Newest",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 253
+        }
+      },
+      {
+        "comment": "",
+        "key": "Last Used",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 254
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shortest",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 255
+        }
+      },
+      {
+        "comment": "",
+        "key": "Any Duration",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 258
+        }
+      },
+      {
+        "comment": "",
+        "key": "Under 30 min",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 259
+        }
+      },
+      {
+        "comment": "",
+        "key": "30–60 min",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "Over 60 min",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "No Routines Match",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Try changing the duration filter.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 283
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear Duration Filter",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose exercises for this routine",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 328
+        }
+      },
+      {
+        "comment": "",
+        "key": "Actions for %@",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 345
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit or delete this routine",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 346
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld exercises · ~ %lld min",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 318
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 331
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 332
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Workout",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 393
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose how to add your training plan.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 365
+        }
+      },
+      {
+        "comment": "",
+        "key": "This feature will be available in a future update.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 428
+        }
+      }
+    ]
+  },
+  "version": 1
+}

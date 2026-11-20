@@ -1,0 +1,71 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "babe7cb34682b722355f3b4898ed478189f9580298e9abb84557bfb3ad4a1a83"
+    }
+  ],
+  "containerPath" : "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "hostTargetedPlatform" : null,
+      "platform" : "watchsimulator",
+      "sdk" : "watchsimulator27.2",
+      "sdkVariant" : "watchsimulator",
+      "supportedArchitectures" : [
+        "arm64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Products",
+      "derivedDataPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived",
+      "indexDataStoreFolderPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "CODE_SIGNING_ALLOWED" : "NO"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_MODEL" : "Watch8,3",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION" : "27.2",
+          "ASSETCATALOG_FILTER_FOR_THINNING_DEVICE_CONFIGURATION" : "Watch8,3",
+          "BUILD_ACTIVE_RESOURCES_ONLY" : "YES",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES",
+          "TARGET_DEVICE_IDENTIFIER" : "BF407964-1891-46E5-A44D-B2493A6BCD8F",
+          "TARGET_DEVICE_MODEL" : "Watch8,3",
+          "TARGET_DEVICE_OS_VERSION" : "27.2",
+          "TARGET_DEVICE_PLATFORM_NAME" : "watchsimulator"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

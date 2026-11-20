@@ -1,0 +1,30 @@
+{
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/App/ModiFiTApp.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ModiFiTApp.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ModiFiTApp.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ModiFiTApp.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ModiFiTApp.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ModiFiTApp.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Core/Components/CoreComponents.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/CoreComponents.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/CoreComponents.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/CoreComponents.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/CoreComponents.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/CoreComponents.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Core/Models/WorkoutModels.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutModels.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutModels.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutModels.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutModels.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutModels.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Core/Persistence/WorkoutHistoryStore.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutHistoryStore.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutHistoryStore.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutHistoryStore.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutHistoryStore.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/WorkoutHistoryStore.swiftdeps"
+  }
+}

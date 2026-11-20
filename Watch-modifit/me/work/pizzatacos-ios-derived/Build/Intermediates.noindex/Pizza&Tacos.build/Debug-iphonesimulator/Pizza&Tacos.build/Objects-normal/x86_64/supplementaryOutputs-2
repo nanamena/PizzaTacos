@@ -1,0 +1,30 @@
+{
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Core/Theme/AppTheme.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/AppTheme.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/AppTheme.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/AppTheme.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/AppTheme.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/AppTheme.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/FocusWorkout/FocusWorkoutViews.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViews.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViews.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViews.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViews.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViews.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/FocusWorkout/ViewModels/FocusWorkoutViewModel.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViewModel.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViewModel.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViewModel.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViewModel.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/FocusWorkoutViewModel.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/Pizza&Tacos/Features/Progress/ViewModels/ProgressViewModel.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ProgressViewModel.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ProgressViewModel.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ProgressViewModel.dia",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ProgressViewModel.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-ios-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-iphonesimulator/Pizza&Tacos.build/Objects-normal/x86_64/ProgressViewModel.swiftdeps"
+  }
+}

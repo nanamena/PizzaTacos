@@ -1,0 +1,99 @@
+{
+  "" : {
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiT Watch-primary.dia",
+    "emit-module-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiT Watch-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiT Watch-primary-emit-module.dia",
+    "pch" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiT Watch-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiT Watch-primary.swiftdeps"
+  },
+  "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Core/WatchPalette.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchPalette~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Models/WatchRoutine.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutine~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/ModiFiTWatchApp.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/ModiFiTWatchApp~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/ViewModels/WatchRoutinesViewModel.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesViewModel~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Views/WatchRoutineDetailView.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineDetailView~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Views/WatchRoutineRow.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutineRow~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Views/WatchRoutinesView.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchRoutinesView~partial.swiftmodule"
+  },
+  "/Users/marcociampa/Documents/github/PizzaTacos/WorkoutWatch/Views/WatchWorkoutSessionView.swift" : {
+    "const-values" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.swiftconstvalues",
+    "dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.d",
+    "diagnostics" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.dia",
+    "index-unit-output-path" : "/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.o",
+    "llvm-bc" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.bc",
+    "object" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.o",
+    "swift-dependencies" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView.swiftdeps",
+    "swiftmodule" : "/Users/marcociampa/Documents/Codex/2026-11-19/me/work/pizzatacos-watch-derived/Build/Intermediates.noindex/Pizza&Tacos.build/Debug-watchsimulator/ModiFiT Watch.build/Objects-normal/x86_64/WatchWorkoutSessionView~partial.swiftmodule"
+  }
+}

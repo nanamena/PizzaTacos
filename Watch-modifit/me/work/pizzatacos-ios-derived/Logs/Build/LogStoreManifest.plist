@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>13</integer>
+	<key>logs</key>
+	<dict>
+		<key>C0CADFB6-407F-41DB-932D-285970C71EC2</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>C0CADFB6-407F-41DB-932D-285970C71EC2.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>Pizza&amp;Tacos project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>Pizza&amp;Tacos</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project Pizza&amp;Tacos with scheme Pizza&amp;Tacos and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>816806292.47597802</real>
+			<key>timeStoppedRecording</key>
+			<real>816806304.85856402</real>
+			<key>title</key>
+			<string>Building project Pizza&amp;Tacos with scheme Pizza&amp;Tacos and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>C0CADFB6-407F-41DB-932D-285970C71EC2</string>
+		</dict>
+		<key>C2DF2633-4760-45C2-BEB0-D0FEE69D68E0</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>C2DF2633-4760-45C2-BEB0-D0FEE69D68E0.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>Pizza&amp;Tacos project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>Pizza&amp;Tacos</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project Pizza&amp;Tacos with scheme Pizza&amp;Tacos and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>816806346.577806</real>
+			<key>timeStoppedRecording</key>
+			<real>816806348.48982406</real>
+			<key>title</key>
+			<string>Building project Pizza&amp;Tacos with scheme Pizza&amp;Tacos and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>C2DF2633-4760-45C2-BEB0-D0FEE69D68E0</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

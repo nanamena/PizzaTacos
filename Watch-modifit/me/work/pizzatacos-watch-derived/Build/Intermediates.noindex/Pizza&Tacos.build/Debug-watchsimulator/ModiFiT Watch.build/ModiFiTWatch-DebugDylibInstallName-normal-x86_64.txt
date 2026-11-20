@@ -1,0 +1,1 @@
+@rpath/ModiFiTWatch.debug.dylib
