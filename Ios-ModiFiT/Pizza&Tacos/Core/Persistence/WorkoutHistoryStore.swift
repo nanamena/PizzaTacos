@@ -37,6 +37,13 @@ final class WorkoutHistoryStore: ObservableObject {
         persist()
     }
 
+    func linkHealthWorkout(_ healthWorkoutID: UUID, to id: UUID) {
+        guard let index = records.firstIndex(where: { $0.id == id }) else { return }
+        records[index].healthWorkoutID = healthWorkoutID
+        hasLocalChanges = true
+        persist()
+    }
+
     private func persist() {
         let records = records
         let storageKey = storageKey

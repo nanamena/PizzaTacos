@@ -21,14 +21,19 @@ struct ContentView: View {
                 SettingsView(themeStore: themeStore, workoutPreferences: workoutPreferences)
             }
         }
-        .tint(AppColors.primary)
-        .preferredColorScheme(themeStore.preferredColorScheme)
-        .sheet(isPresented: $viewModel.isAddWorkoutPresented) {
-            AddWorkoutSheet(workoutLibrary: workoutLibrary) {
+        .sheet(isPresented: $viewModel.isAddWorkoutPresented, onDismiss: {
+            selectedTab = .workouts
+            viewModel.presentPreparedImport()
+        }) {
+            AddWorkoutSheet(startAtScanner: viewModel.startAtScanner,
+                            onImportReady: viewModel.prepareImportedWorkout) {
                 viewModel.isManualWorkoutRequested = true
             }
+                .id(viewModel.addWorkoutPresentationID)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+        .modifier(AppTheme(palette: themeStore.palette))
+        .preferredColorScheme(nil)
     }
 }

@@ -1,7 +1,6 @@
 import AVFAudio
 import AVFoundation
 import Combine
-import HealthKit
 import UserNotifications
 
 // Este ViewModel coordina las preferencias locales y las autorizaciones reales del sistema.
@@ -11,11 +10,7 @@ final class PermissionsViewModel: ObservableObject {
     @Published var cameraEnabled = false
     @Published var audioEnabled = UserDefaults.standard.bool(forKey: "modifit.audioEnabled")
     @Published var notificationsEnabled = UserDefaults.standard.bool(forKey: "modifit.notificationsEnabled")
-    @Published var healthRequestSubmitted = UserDefaults.standard.bool(forKey: "modifit.healthRequestSubmitted")
-    @Published var healthAvailable = HKHealthStore.isHealthDataAvailable()
     @Published var alertMessage: String?
-
-    private let healthStore = HKHealthStore()
 
     init() {
         refreshCaptureAuthorization()
@@ -32,12 +27,6 @@ final class PermissionsViewModel: ObservableObject {
     func refreshCaptureAuthorization() {
         microphoneEnabled = AVAudioApplication.shared.recordPermission == .granted
         cameraEnabled = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
-    }
-
-    // Esta función conserva si ya se presentó la solicitud, sin afirmar que el acceso fue concedido.
-    func refreshHealthAuthorization() {
-        healthAvailable = HKHealthStore.isHealthDataAvailable()
-        healthRequestSubmitted = healthAvailable && UserDefaults.standard.bool(forKey: "modifit.healthRequestSubmitted")
     }
 
     // Esta función solicita permiso de micrófono al sistema solo cuando la persona lo activa.
@@ -131,22 +120,6 @@ final class PermissionsViewModel: ObservableObject {
         }
     }
 
-    // Esta función presenta el consentimiento HealthKit para leer y guardar entrenamientos.
-    func requestHealthAccess() async {
-        guard HKHealthStore.isHealthDataAvailable() else {
-            healthAvailable = false
-            alertMessage = "Apple Health is not available on this device."
-            return
-        }
-        let workoutType = HKObjectType.workoutType()
-        do {
-            try await healthStore.requestAuthorization(toShare: [workoutType], read: [workoutType])
-            healthRequestSubmitted = true
-            UserDefaults.standard.set(true, forKey: "modifit.healthRequestSubmitted")
-        } catch {
-            alertMessage = "Apple Health access could not be requested. Please try again."
-        }
-    }
 }
 import SwiftUI
 import Combine

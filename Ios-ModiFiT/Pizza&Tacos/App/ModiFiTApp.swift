@@ -6,6 +6,7 @@ struct ModiFiTApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task { await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded() }
         }
     }
 }

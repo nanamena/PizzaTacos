@@ -1,101 +1,195 @@
 import SwiftUI
-import PhotosUI
+import Photos
 import UniformTypeIdentifiers
-import PDFKit
 import UIKit
 
-// Esta pantalla ofrece cámara, Fotos y Archivos, y conserva una copia antes de continuar.
+// Esta pantalla ofrece cámara, Fotos y Archivos, y abre la revisión tras leer las rutinas.
 struct WorkoutScannerView: View {
-    let activePlanName: String?
-    let onActivate: (String, [Routine]) -> Void
+    @Environment(\.appColors) private var appColors
+    @Environment(\.scenePhase) private var scenePhase
+
+    let onImportReady: (WorkoutImportDraft) -> Void
     @StateObject private var viewModel = WorkoutScannerViewModel()
-    @State private var isReading = false
-    @State private var showingReview = false
+    @State private var limitedPhotoPresenter = LimitedPhotoLibraryPresenter()
+    @State private var pendingPhotoRejection: PhotoPickerRejection?
+    @State private var rejectedPhotoIdentifier: String?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Scan Workout Plan").font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
-                Text("Choose a photo or document to prepare your workout plan.")
-                    .font(.system(size: 14, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                Text("Scan Routine").font(.system(size: 27, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
+                Text("Choose a photo or document to create routines.")
+                    .font(.system(size: 14, design: .rounded)).foregroundStyle(appColors.secondaryText)
+                if viewModel.isAnalyzing {
+                    SwiftUI.ProgressView("Reading routines…")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .appCard()
+                }
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(alignment: .leading, spacing: 5) {
                         sourceButton("Take Photo", symbol: "camera", action: viewModel.prepareCamera)
-                        Text("ModiFiT uses the camera to capture your plan and read the exercises on this device.")
-                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                        Text("ModiFiT uses the camera to capture your routine and read the exercises on this device.")
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(appColors.secondaryText)
                             .padding(.horizontal, 12)
                     }
                     VStack(alignment: .leading, spacing: 5) {
-                        Button { viewModel.showingPhotos = true } label: {
+                        Button(action: viewModel.preparePhotos) {
                             sourceLabel("Choose from Photos", symbol: "photo")
                         }.buttonStyle(.plain)
-                        Text("ModiFiT reads the exercises from the photo you choose and saves a copy on this device.")
-                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                        Text("ModiFiT reads the photo you choose and saves a copy on this device. With limited access, the photo must also be in your allowed selection.")
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(appColors.secondaryText)
                             .padding(.horizontal, 12)
+                        if viewModel.photosAuthorizationStatus == .limited {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("The Apple picker can show your library. Add a photo to your allowed selection before importing it.")
+                                    .font(.footnote)
+                                    .foregroundStyle(appColors.secondaryText)
+                                Button("Manage Selected Photos") {
+                                    let presented = limitedPhotoPresenter.present { _ in
+                                        viewModel.refreshPhotosAuthorizationStatus()
+                                    }
+                                    if !presented { openSettings() }
+                                }
+                                Button("Allow All Photos") { openSettings() }
+                            }
+                            .padding(.horizontal, 12)
+                        }
                     }
                     VStack(alignment: .leading, spacing: 5) {
                         sourceButton("Choose from Files", symbol: "folder", action: { viewModel.showingImporter = true })
                         Text("ModiFiT reads the exercises from the PDF or image you choose and saves a copy on this device.")
-                            .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                            .font(.system(size: 12, design: .rounded)).foregroundStyle(appColors.secondaryText)
                             .padding(.horizontal, 12)
                     }
-                }.disabled(isReading)
-                if let data = viewModel.previewData, let name = viewModel.fileName {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(name).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
-                        if viewModel.isPDF, let url = viewModel.savedURL {
-                            PDFPlanPreview(url: url).frame(height: 330).clipShape(RoundedRectangle(cornerRadius: 16))
-                        } else if let image = UIImage(data: data) {
-                            Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 350).frame(maxWidth: .infinity)
-                        }
-                        Button { isReading = true } label: {
-                            Text("Continue").font(.system(size: 16, weight: .bold, design: .rounded)).foregroundStyle(.white)
-                                .frame(maxWidth: .infinity, minHeight: 52).background(AppColors.primary, in: Capsule())
-                        }.buttonStyle(.plain).disabled(isReading)
-                        if isReading {
-                            SwiftUI.ProgressView("Reading workout plan…")
-                        }
-                    }.padding(14).appCard()
                 }
             }
             .frame(maxWidth: 600).padding(18).frame(maxWidth: .infinity, alignment: .top)
         }
-        .background(AppColors.background.ignoresSafeArea())
-        .navigationTitle("Scan Plan").navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $showingReview) {
-            if let draft = Binding($viewModel.reviewDraft) {
-                WorkoutImportReviewView(draft: draft, activePlanName: activePlanName, onActivate: onActivate)
-            }
+        .background(appColors.background.ignoresSafeArea())
+        .background(LimitedPhotoLibraryPresenterReader(presenter: limitedPhotoPresenter)
+            .frame(width: 0, height: 0))
+        .navigationTitle("Scan Routine").navigationBarTitleDisplayMode(.inline)
+        .onAppear { viewModel.refreshPhotosAuthorizationStatus() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { viewModel.refreshPhotosAuthorizationStatus() }
         }
-        .task(id: isReading) {
-            guard isReading else { return }
-            await viewModel.prepareReview()
-            guard !Task.isCancelled else { return }
-            isReading = false
-            showingReview = viewModel.reviewDraft != nil
-        }
+        .onChange(of: viewModel.pendingOutcome?.id) { _, _ in presentPendingOutcomeIfReady() }
+        .onChange(of: viewModel.showingCamera) { _, _ in presentPendingOutcomeIfReady() }
+        .onChange(of: viewModel.showingPhotos) { _, _ in presentPendingOutcomeIfReady() }
+        .onChange(of: viewModel.showingImporter) { _, _ in presentPendingOutcomeIfReady() }
         .fileImporter(isPresented: $viewModel.showingImporter, allowedContentTypes: [.pdf, .image], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls): if let url = urls.first { viewModel.importFile(url) }
-            case .failure: viewModel.reportImportFailure()
+            case .failure(let error):
+                if (error as? CocoaError)?.code != .userCancelled { viewModel.reportImportFailure() }
             }
         }
-        .fileDialogMessage("Choose a PDF or image so ModiFiT can read the exercises in your plan on this device.")
-        .sheet(isPresented: $viewModel.showingPhotos) {
-            PhotoLibraryPicker { data, fileName in
+        .fileDialogMessage("Choose a PDF or image so ModiFiT can read the exercises in your routine on this device.")
+        .sheet(isPresented: $viewModel.showingPhotos, onDismiss: photoPickerDismissed) {
+            NativePhotoLibraryPickerView(onSelect: { data, fileName in
                 viewModel.importSelectedPhoto(data, name: fileName)
-            }
+            }, onRejected: { rejection in
+                pendingPhotoRejection = rejection
+            }, onFailure: {
+                viewModel.reportPhotoFailure()
+            })
         }
-        .sheet(isPresented: $viewModel.showingCamera) {
+        .sheet(isPresented: $viewModel.showingCamera, onDismiss: presentPendingOutcomeIfReady) {
             CameraCaptureView { image in
-                guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+                guard let data = image.jpegData(compressionQuality: 0.9) else {
+                    viewModel.reportPhotoFailure(source: .camera)
+                    return
+                }
                 viewModel.importPhoto(data, name: "Workout-Camera-\(UUID().uuidString.prefix(8))")
-            }
+            } onFailure: { viewModel.reportPhotoFailure(source: .camera) }
         }
-        .alert("Workout Plan", isPresented: $viewModel.showingError) {
-            Button("OK", role: .cancel) { }
+        .alert(viewModel.errorTitle, isPresented: $viewModel.showingError) {
+            if viewModel.retryOnlyError {
+                Button("OK", role: .cancel) { }
+            } else if viewModel.errorTitle == "Camera access is off" {
+                Button("Open Settings") { openSettings() }
+            } else if viewModel.errorTitle == "Photos access is off" {
+                Button("Open Settings") { openSettings() }
+            } else if viewModel.errorTitle == "Photo not in selected photos" {
+                Button("Add to Selected Photos") { addRejectedPhotoToSelection() }
+            } else if viewModel.errorTitle == "Can’t verify this photo" {
+                Button("Choose Photo", action: viewModel.preparePhotos)
+            } else if viewModel.errorTitle == "Camera unavailable" {
+                Button("Choose Photo", action: viewModel.preparePhotos)
+            } else {
+                Button("Choose File") { viewModel.showingImporter = true }
+            }
+            if !viewModel.retryOnlyError {
+                Button("Cancel", role: .cancel) { rejectedPhotoIdentifier = nil }
+            }
         } message: {
             Text(viewModel.errorMessage)
+        }
+    }
+
+    private func photoPickerDismissed() {
+        guard let rejection = pendingPhotoRejection else {
+            presentPendingOutcomeIfReady()
+            return
+        }
+        pendingPhotoRejection = nil
+        switch rejection {
+        case .notAllowed(let identifier):
+            rejectedPhotoIdentifier = identifier
+            viewModel.presentPhotoAccessAlert(
+                title: "Photo not in selected photos",
+                message: "Add this photo to your allowed selection, then choose it again to import your routine."
+            )
+        case .unverifiable:
+            viewModel.presentPhotoAccessAlert(
+                title: "Can’t verify this photo",
+                message: "ModiFiT can’t confirm that this photo is in your allowed selection. Choose another photo."
+            )
+        case .permissionUnavailable:
+            viewModel.preparePhotos()
+        }
+    }
+
+    private func addRejectedPhotoToSelection() {
+        guard let identifier = rejectedPhotoIdentifier else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            let presented = limitedPhotoPresenter.present { newlySelectedIdentifiers in
+                viewModel.refreshPhotosAuthorizationStatus()
+                let status = viewModel.photosAuthorizationStatus
+                let isAllowed = status == .authorized ||
+                    (status == .limited && (newlySelectedIdentifiers.contains(identifier) ||
+                        PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject != nil))
+                rejectedPhotoIdentifier = nil
+                if isAllowed {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        viewModel.preparePhotos()
+                    }
+                }
+            }
+            if !presented {
+                rejectedPhotoIdentifier = nil
+                openSettings()
+            }
+        }
+    }
+
+    private func presentPendingOutcomeIfReady() {
+        guard !viewModel.showingCamera, !viewModel.showingPhotos, !viewModel.showingImporter,
+              let outcome = viewModel.pendingOutcome else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !viewModel.showingCamera, !viewModel.showingPhotos, !viewModel.showingImporter,
+                  let outcome = viewModel.consumePendingOutcome(id: outcome.id) else { return }
+            switch outcome.kind {
+            case .review:
+                guard let draft = viewModel.reviewDraft else { return }
+                onImportReady(draft)
+            case let .retry(title, message):
+                viewModel.presentRetryAlert(title: title, message: message)
+            }
         }
     }
 
@@ -103,13 +197,18 @@ struct WorkoutScannerView: View {
         Button(action: action) { sourceLabel(title, symbol: symbol) }.buttonStyle(.plain)
     }
 
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
+
     private func sourceLabel(_ title: String, symbol: String) -> some View {
         HStack(spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 20, weight: .medium)).foregroundStyle(AppColors.primary)
-                .frame(width: 48, height: 48).background(AppColors.accent.opacity(0.65), in: Circle())
-            Text(title).font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
+            Image(systemName: symbol).font(.system(size: 20, weight: .medium)).foregroundStyle(appColors.primary)
+                .frame(width: 48, height: 48).background(appColors.accent.opacity(0.65), in: Circle())
+            Text(title).font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundStyle(appColors.text)
             Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(AppColors.secondaryText)
+            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(appColors.secondaryText)
         }.padding(12).appCard()
     }
 }
@@ -117,8 +216,9 @@ struct WorkoutScannerView: View {
 // Este representable usa el selector nativo de cámara y devuelve una foto capturada.
 private struct CameraCaptureView: UIViewControllerRepresentable {
     let onCapture: (UIImage) -> Void
+    let onFailure: () -> Void
     @Environment(\.dismiss) private var dismiss
-    func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture, dismiss: dismiss) }
+    func makeCoordinator() -> Coordinator { Coordinator(onCapture: onCapture, onFailure: onFailure, dismiss: dismiss) }
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController(); picker.sourceType = .camera; picker.delegate = context.coordinator
         return picker
@@ -127,45 +227,16 @@ private struct CameraCaptureView: UIViewControllerRepresentable {
 
     final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
         let onCapture: (UIImage) -> Void
+        let onFailure: () -> Void
         let dismiss: DismissAction
-        init(onCapture: @escaping (UIImage) -> Void, dismiss: DismissAction) { self.onCapture = onCapture; self.dismiss = dismiss }
+        init(onCapture: @escaping (UIImage) -> Void, onFailure: @escaping () -> Void, dismiss: DismissAction) {
+            self.onCapture = onCapture; self.onFailure = onFailure; self.dismiss = dismiss
+        }
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage { onCapture(image) }
+            else { onFailure() }
             dismiss()
         }
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { dismiss() }
-    }
-}
-
-// Esta vista muestra páginas de PDF conservando la navegación y zoom nativos de PDFKit.
-private struct PDFPlanPreview: UIViewRepresentable {
-    let url: URL
-    func makeUIView(context: Context) -> PDFView { let view = PDFView(); view.autoScales = true; view.document = PDFDocument(url: url); return view }
-    func updateUIView(_ view: PDFView, context: Context) { view.document = PDFDocument(url: url) }
-}
-
-// Este selector nativo de Photos entrega solo la imagen elegida, sin pedir acceso completo a la biblioteca.
-private struct PhotoLibraryPicker: UIViewControllerRepresentable {
-    let onSelect: (Data, String) -> Void
-    @Environment(\.dismiss) private var dismiss
-    func makeCoordinator() -> Coordinator { Coordinator(onSelect: onSelect, dismiss: dismiss) }
-    func makeUIViewController(context: Context) -> PHPickerViewController {
-        var configuration = PHPickerConfiguration(); configuration.filter = .images; configuration.selectionLimit = 1
-        let picker = PHPickerViewController(configuration: configuration); picker.delegate = context.coordinator
-        return picker
-    }
-    func updateUIViewController(_ controller: PHPickerViewController, context: Context) { }
-    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        let onSelect: (Data, String) -> Void
-        let dismiss: DismissAction
-        init(onSelect: @escaping (Data, String) -> Void, dismiss: DismissAction) { self.onSelect = onSelect; self.dismiss = dismiss }
-        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            guard let provider = results.first?.itemProvider else { dismiss(); return }
-            provider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { [onSelect, dismiss] url, _ in
-                guard let url, let data = try? Data(contentsOf: url) else { DispatchQueue.main.async { dismiss() }; return }
-                let fileName = "Workout-Photo-\(UUID().uuidString.prefix(8)).\(url.pathExtension.isEmpty ? "jpg" : url.pathExtension)"
-                DispatchQueue.main.async { onSelect(data, fileName); dismiss() }
-            }
-        }
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import HealthKit
 
 // Este ViewModel coordina la sesión, las transiciones entre sets y el temporizador.
 @MainActor
@@ -19,11 +20,14 @@ final class FocusWorkoutViewModel: ObservableObject {
     @Published var showingExitConfirmation = false
     @Published var presentedSheet: FocusWorkoutSheet?
     @Published private(set) var endedEarly = false
+    @Published private(set) var healthSaveStatus: HealthWorkoutSaveStatus = .off
+    @Published private(set) var activeEnergyKilocalories: Double?
 
     let routine: Routine
     let exercises: [FocusExercise]
     let workoutID = UUID()
     private let historyStore: WorkoutHistoryStore
+    private let healthSession = AppleHealthWorkoutSession()
 
     private var timerTask: Task<Void, Never>?
     private var countdownDeadline: Date?
@@ -40,11 +44,7 @@ final class FocusWorkoutViewModel: ObservableObject {
     init(routine: Routine, historyStore: WorkoutHistoryStore) {
         self.routine = routine
         self.historyStore = historyStore
-        exercises = routine.exercises.map { exercise in
-            var exercise = exercise
-            exercise.muscleGroups = Self.muscleGroups(for: exercise.name)
-            return exercise
-        }
+        exercises = routine.exercises
     }
 
     var currentExercise: FocusExercise { exercises[min(exerciseIndex, exercises.count - 1)] }
@@ -106,9 +106,22 @@ final class FocusWorkoutViewModel: ObservableObject {
     }
 
     // Esta función inicia la sesión y activa de inmediato el primer ejercicio.
-    func startWorkout() {
+    func startWorkout() async {
         guard state == .ready else { return }
-        sessionStartedAt = Date()
+        if let category = routine.activityCategory,
+           AppleHealthAccess.shared.savesWorkouts,
+           AppleHealthAccess.shared.canWriteWorkouts {
+            healthSaveStatus = .starting
+            do {
+                sessionStartedAt = try await healthSession.start(category: category, recordID: workoutID)
+                healthSaveStatus = .recording
+            } catch {
+                healthSaveStatus = .failed
+                sessionStartedAt = Date()
+            }
+        } else {
+            sessionStartedAt = Date()
+        }
         estimatedWorkoutDurationSeconds = WorkoutTiming.totalSeconds(for: exercises)
         state = .exercising
         startTimedExerciseIfNeeded()
@@ -128,6 +141,7 @@ final class FocusWorkoutViewModel: ObservableObject {
         timerTask?.cancel()
         timerTask = nil
         pauseStartedAt = Date()
+        if healthSaveStatus == .recording { healthSession.pause() }
         state = .paused
     }
 
@@ -141,6 +155,7 @@ final class FocusWorkoutViewModel: ObservableObject {
             if pausedFromState == .exercising { currentSetStartedAt = currentSetStartedAt?.addingTimeInterval(pauseDuration) }
         }
         pauseStartedAt = nil
+        if healthSaveStatus == .recording { healthSession.resume() }
         state = pausedFromState
         if pausedFromState == .resting && restTimeExpired {
             startRestOvertime()
@@ -199,6 +214,7 @@ final class FocusWorkoutViewModel: ObservableObject {
 
     // Esta función reinicia la sesión desde el primer ejercicio y su primer set.
     func restartWorkout() {
+        healthSession.discard()
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
@@ -212,12 +228,14 @@ final class FocusWorkoutViewModel: ObservableObject {
         completedSets = 0
         totalPausedSeconds = 0
         pauseStartedAt = nil
-        sessionStartedAt = Date()
+        sessionStartedAt = nil
         estimatedWorkoutDurationSeconds = WorkoutTiming.totalSeconds(for: exercises)
         sessionEndedAt = nil
         endedEarly = false
-        state = .exercising
-        startTimedExerciseIfNeeded()
+        healthSaveStatus = .off
+        activeEnergyKilocalories = nil
+        state = .ready
+        Task { await startWorkout() }
     }
 
     // Esta función termina anticipadamente y detiene cualquier temporizador pendiente.
@@ -311,7 +329,25 @@ final class FocusWorkoutViewModel: ObservableObject {
                                                      completedAt: sessionEndedAt!,
                                                      durationSeconds: sessionDurationSeconds,
                                                      completedExercises: completedExercises,
-                                                     muscleGroups: Array(Set(exercises.flatMap(\.muscleGroups))).sorted()))
+                                                     muscleGroups: []))
+            if healthSaveStatus == .recording {
+                healthSaveStatus = .saving
+                let endDate = sessionEndedAt!
+                Task {
+                    do {
+                        let workout = try await healthSession.finish(at: endDate)
+                        historyStore.linkHealthWorkout(workout.uuid, to: workoutID)
+                        activeEnergyKilocalories = AppleHealthWorkoutSession.activeEnergyKilocalories(from: workout)
+                        healthSaveStatus = .saved
+                    } catch {
+                        healthSession.discard()
+                        healthSaveStatus = .failed
+                    }
+                }
+            }
+        } else {
+            healthSession.discard()
+            healthSaveStatus = .off
         }
     }
 
@@ -378,17 +414,4 @@ final class FocusWorkoutViewModel: ObservableObject {
         String(format: "%02d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
     }
 
-    // Esta clasificación permite resumir solo los grupos realmente incluidos en los ejercicios registrados.
-    private static func muscleGroups(for name: String) -> [String] {
-        let name = name.lowercased()
-        if name.contains("bench") || name.contains("push") { return ["Chest", "Arms"] }
-        if name.contains("shoulder") { return ["Shoulders", "Arms"] }
-        if name.contains("lat") || name.contains("row") || name.contains("deadlift") { return ["Back", "Arms"] }
-        if name.contains("curl") || name.contains("tricep") { return ["Arms"] }
-        if name.contains("bridge") { return ["Glutes", "Core"] }
-        if name.contains("plank") { return ["Core"] }
-        if name.contains("squat") || name.contains("lunge") { return ["Legs", "Glutes"] }
-        if name.contains("calf") { return ["Legs"] }
-        return []
-    }
 }

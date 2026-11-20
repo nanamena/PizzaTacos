@@ -2,6 +2,8 @@ import SwiftUI
 
 // Esta vista presenta el entrenamiento activo y conecta sus controles con el ViewModel.
 struct FocusWorkoutView: View {
+    @Environment(\.appColors) private var appColors
+
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: FocusWorkoutViewModel
     private let historyStore: WorkoutHistoryStore
@@ -21,8 +23,8 @@ struct FocusWorkoutView: View {
                 activeWorkoutScreen
             }
         }
-        .background(AppColors.background.ignoresSafeArea())
-        .tint(AppColors.primary)
+        .background(appColors.background.ignoresSafeArea())
+        .tint(appColors.primary)
         .navigationTitle(viewModel.routine.name)
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -32,19 +34,19 @@ struct FocusWorkoutView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { viewModel.showingEndConfirmation = true } label: {
                         Image(systemName: "xmark")
-                            .foregroundStyle(AppColors.primary)
+                            .foregroundStyle(appColors.primary)
                     }
                     .accessibilityLabel("End workout")
                     .confirmationDialog("End this workout?", isPresented: $viewModel.showingEndConfirmation, titleVisibility: .visible) {
                         Button("Keep Workout Running", role: .cancel) { }
                         Button("End Workout", role: .destructive) { viewModel.endWorkout() }
                     } message: {
-                        Text("Your completed sets will be included in this session.")
+                        Text("This workout won't be saved to your history or Apple Health.")
                     }
                 }
             }
         }
-        .onAppear { viewModel.startWorkout() }
+        .task { await viewModel.startWorkout() }
         .onChange(of: viewModel.state) { _, state in
             if state == .completed && !viewModel.endedEarly {
                 onWorkoutCompleted()
@@ -72,25 +74,33 @@ struct FocusWorkoutView: View {
                 WorkoutTimerView(viewModel: viewModel)
 
                 WorkoutStatsView(viewModel: viewModel)
+                if viewModel.healthSaveStatus == .failed {
+                    Label("Apple Health is unavailable for this workout. Your session continues locally.", systemImage: "exclamationmark.circle")
+                        .font(.footnote)
+                        .foregroundStyle(appColors.secondaryText)
+                }
             }
             .frame(maxWidth: 600).padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 18)
             .frame(maxWidth: .infinity)
         }
-        .background(AppColors.background.ignoresSafeArea())
+        .background(appColors.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             actionControls
                 .frame(maxWidth: 600)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
-                .background(AppColors.background)
+                .background(appColors.background)
         }
     }
 
     // Este grupo muestra controles relevantes según la fase del ejercicio.
     @ViewBuilder
     private var actionControls: some View {
-        if viewModel.state == .resting {
+        if viewModel.state == .ready {
+            SwiftUI.ProgressView("Preparing workout")
+                .frame(maxWidth: .infinity, minHeight: 50)
+        } else if viewModel.state == .resting {
             HStack(spacing: 11) {
                 WorkoutPrimaryAction(title: viewModel.restLeadsToNextExercise ? "Next Exercise" : "Next Set", symbol: "forward.end.fill", action: viewModel.skipRest)
                 WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
@@ -107,6 +117,8 @@ import SwiftUI
 
 // Esta vista celebra la sesión y registra cómo se sintió la persona al terminar.
 struct WorkoutCompletionView: View {
+    @Environment(\.appColors) private var appColors
+
     @ObservedObject var viewModel: FocusWorkoutViewModel
     @StateObject private var feedbackViewModel: WorkoutFeedbackViewModel
     let onFinish: () -> Void
@@ -121,10 +133,10 @@ struct WorkoutCompletionView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
                 Text(viewModel.stateTitle)
-                    .font(.system(size: 32, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+                    .font(.system(size: 32, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
                     .multilineTextAlignment(.center)
-                Text(viewModel.endedEarly ? "Your workout progress has been saved for this session." : "Great work. Every session counts.")
-                    .font(.system(size: 15, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                Text(viewModel.endedEarly ? "This workout wasn't saved to your history or Apple Health." : "Great work. Every session counts.")
+                    .font(.system(size: 15, design: .rounded)).foregroundStyle(appColors.secondaryText)
                     .multilineTextAlignment(.center)
 
                 Image("WorkoutCompletionMascot")
@@ -135,16 +147,29 @@ struct WorkoutCompletionView: View {
 
                 HStack(spacing: 0) {
                     completionStat("Duration", value: Self.durationText(viewModel.sessionDurationSeconds), symbol: "clock")
-                    Rectangle().fill(AppColors.border).frame(width: 1, height: 46)
+                    Rectangle().fill(appColors.border).frame(width: 1, height: 46)
                     completionStat("Exercises", value: "\(viewModel.completedExercises) of \(viewModel.exercises.count)", symbol: "dumbbell.fill")
                 }
                 .padding(.vertical, 14).appCard()
 
+                if !viewModel.endedEarly && viewModel.healthSaveStatus != .off {
+                    VStack(alignment: .leading, spacing: 7) {
+                        Label("Apple Health", systemImage: "heart.fill")
+                            .font(.headline)
+                            .foregroundStyle(appColors.text)
+                        Text(healthResultText)
+                            .font(.subheadline)
+                            .foregroundStyle(appColors.secondaryText)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(15).appCard()
+                }
+
                 VStack(alignment: .leading, spacing: 11) {
                     Text(viewModel.endedEarly ? "Workout not completed" : "How did you feel today?")
-                        .font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+                        .font(.system(size: 18, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
                     Text("Your feedback helps you understand your training progress.")
-                        .font(.system(size: 12, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                        .font(.system(size: 12, design: .rounded)).foregroundStyle(appColors.secondaryText)
                     if !viewModel.endedEarly {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 9) {
                             ForEach(WorkoutFeeling.allCases) { feeling in feelingChoice(feeling) }
@@ -158,8 +183,8 @@ struct WorkoutCompletionView: View {
                         onFinish()
                     } label: {
                         Text("Finish Workout")
-                            .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(AppColors.surface)
-                            .frame(maxWidth: .infinity, minHeight: 56).background(AppColors.primary, in: Capsule())
+                            .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(appColors.surface)
+                            .frame(maxWidth: .infinity, minHeight: 56).background(appColors.primary, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -168,28 +193,45 @@ struct WorkoutCompletionView: View {
                         onFinish()
                     } label: {
                         Text("Save Feedback")
-                            .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(AppColors.surface)
-                            .frame(maxWidth: .infinity, minHeight: 56).background(AppColors.primary, in: Capsule())
+                            .font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(appColors.surface)
+                            .frame(maxWidth: .infinity, minHeight: 56).background(appColors.primary, in: Capsule())
                     }
                     .buttonStyle(.plain)
                     .disabled(feedbackViewModel.selectedFeeling == nil)
                     .opacity(feedbackViewModel.selectedFeeling == nil ? 0.55 : 1)
                     Button("Skip") { onFinish() }
-                        .font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.primary)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded)).foregroundStyle(appColors.primary)
                 }
             }
             .frame(maxWidth: 600).padding(20).frame(maxWidth: .infinity)
         }
-        .background(AppColors.background.ignoresSafeArea())
+        .background(appColors.background.ignoresSafeArea())
     }
 
     private func completionStat(_ title: String, value: String, symbol: String) -> some View {
         VStack(spacing: 5) {
-            Image(systemName: symbol).font(.system(size: 19, weight: .semibold)).foregroundStyle(AppColors.primary)
-            Text(title).font(.caption).foregroundStyle(AppColors.secondaryText)
-            Text(value).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+            Image(systemName: symbol).font(.system(size: 19, weight: .semibold)).foregroundStyle(appColors.primary)
+            Text(title).font(.caption).foregroundStyle(appColors.secondaryText)
+            Text(value).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private var healthResultText: String {
+        switch viewModel.healthSaveStatus {
+        case .starting, .recording, .saving:
+            "Saving workout in Apple Health…"
+        case .saved:
+            if let energy = viewModel.activeEnergyKilocalories {
+                "Active energy: \(energy.formatted(.number.precision(.fractionLength(0)))) kcal · Apple Health"
+            } else {
+                "Workout saved. Active energy is unavailable."
+            }
+        case .failed:
+            "Workout saved locally, but Apple Health could not save it."
+        case .off:
+            ""
+        }
     }
 
     private func feelingChoice(_ feeling: WorkoutFeeling) -> some View {
@@ -203,10 +245,10 @@ struct WorkoutCompletionView: View {
                 Spacer(minLength: 0)
                 if selected { Image(systemName: "checkmark.circle.fill").font(.system(size: 14)) }
             }
-            .foregroundStyle(selected ? AppColors.primary : AppColors.text)
+            .foregroundStyle(selected ? appColors.primary : appColors.text)
             .padding(11).frame(maxWidth: .infinity, minHeight: 44)
-            .background(selected ? AppColors.accent.opacity(0.65) : AppColors.background, in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? AppColors.primary : AppColors.border, lineWidth: selected ? 1.5 : 1))
+            .background(selected ? appColors.accent.opacity(0.65) : appColors.background, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? appColors.primary : appColors.border, lineWidth: selected ? 1.5 : 1))
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -223,6 +265,8 @@ import SwiftUI
 
 // Esta hoja enumera ejercicios y conserva el control del progreso en la vista activa.
 struct WorkoutExerciseListView: View {
+    @Environment(\.appColors) private var appColors
+
     let exercises: [FocusExercise]
     let completedExercises: Int
     let currentIndex: Int
@@ -233,31 +277,33 @@ struct WorkoutExerciseListView: View {
                 HStack(spacing: 12) {
                         Image(systemName: index < completedExercises ? "checkmark.circle.fill" : exercise.symbol)
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(index < completedExercises ? AppColors.primary : AppColors.secondary)
+                            .foregroundStyle(index < completedExercises ? appColors.primary : appColors.secondary)
                             .frame(width: 36)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(exercise.name).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(AppColors.text)
-                            Text(exercise.instructionSummary).font(.caption).foregroundStyle(AppColors.secondaryText)
+                            Text(exercise.name).font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(appColors.text)
+                            Text(exercise.instructionSummary).font(.caption).foregroundStyle(appColors.secondaryText)
                         }
                         Spacer()
                         if index == currentIndex {
-                            Text("Current").font(.caption2.bold()).foregroundStyle(AppColors.primary)
+                            Text("Current").font(.caption2.bold()).foregroundStyle(appColors.primary)
                         }
                     }
                 .padding(.vertical, 5)
-                .listRowBackground(AppColors.card)
+                .listRowBackground(appColors.card)
             }
         }
         .scrollContentBackground(.hidden)
-        .background(AppColors.background)
+        .background(appColors.background)
         .navigationTitle("Exercise List")
         .navigationBarTitleDisplayMode(.inline)
-        .tint(AppColors.primary)
+        .tint(appColors.primary)
     }
 }
 
 // Esta tarjeta resume el tiempo estimado y el progreso.
 struct WorkoutStatsView: View {
+    @Environment(\.appColors) private var appColors
+
     @ObservedObject var viewModel: FocusWorkoutViewModel
 
     var body: some View {
@@ -274,10 +320,10 @@ struct WorkoutStatsView: View {
 
     private func stat(symbol: String, title: String, value: String, detail: String? = nil) -> some View {
         VStack(spacing: 5) {
-            Image(systemName: symbol).font(.system(size: 21, weight: .semibold)).foregroundStyle(AppColors.primary)
-            Text(title).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+            Image(systemName: symbol).font(.system(size: 21, weight: .semibold)).foregroundStyle(appColors.primary)
+            Text(title).font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(appColors.secondaryText)
                 .lineLimit(1).minimumScaleFactor(0.8)
-            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
                 .lineLimit(1).minimumScaleFactor(0.75)
             if let detail {
                 Text(detail).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.red)
@@ -289,13 +335,15 @@ struct WorkoutStatsView: View {
     }
 
     private var divider: some View {
-        Rectangle().fill(AppColors.border).frame(width: 1, height: 44)
+        Rectangle().fill(appColors.border).frame(width: 1, height: 44)
     }
 }
 import SwiftUI
 
 // Esta tarjeta muestra el ejercicio activo y su progreso por sets.
 struct WorkoutSummaryCard: View {
+    @Environment(\.appColors) private var appColors
+
     @ObservedObject var viewModel: FocusWorkoutViewModel
 
     private var exerciseTarget: String {
@@ -309,21 +357,21 @@ struct WorkoutSummaryCard: View {
             HStack(spacing: 13) {
                 Image(systemName: viewModel.currentExercise.symbol)
                     .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(AppColors.primary)
+                    .foregroundStyle(appColors.primary)
                     .frame(width: 54, height: 54)
-                    .background(AppColors.accent.opacity(0.55), in: RoundedRectangle(cornerRadius: 18))
+                    .background(appColors.accent.opacity(0.55), in: RoundedRectangle(cornerRadius: 18))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(viewModel.currentExercise.name)
-                        .font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(AppColors.text)
+                        .font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
                     Text("\(exerciseTarget) · \(viewModel.setLabel)")
-                        .font(.system(size: 14, design: .rounded)).foregroundStyle(AppColors.secondaryText)
+                        .font(.system(size: 14, design: .rounded)).foregroundStyle(appColors.secondaryText)
                 }
                 Spacer(minLength: 2)
             }
             HStack(spacing: 5) {
                 ForEach(0..<max(viewModel.currentExercise.sets, 0), id: \.self) { index in
                     Capsule()
-                        .fill(index < viewModel.currentSet ? AppColors.primary : AppColors.accent.opacity(0.65))
+                        .fill(index < viewModel.currentSet ? appColors.primary : appColors.accent.opacity(0.65))
                         .frame(height: 7)
                 }
             }
@@ -337,6 +385,8 @@ import SwiftUI
 
 // Shows a randomly selected exercise animation and the current timer controls.
 struct WorkoutTimerView: View {
+    @Environment(\.appColors) private var appColors
+
     @ObservedObject var viewModel: FocusWorkoutViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animation = WorkoutAnimation.all.randomElement()!
@@ -381,17 +431,17 @@ struct WorkoutTimerView: View {
                     }
                 }
                 .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
-                .monospacedDigit().foregroundStyle(AppColors.text)
+                .monospacedDigit().foregroundStyle(appColors.text)
                 .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
             }
 
             if let timerText {
                 Text(viewModel.stateTitle)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppColors.secondaryText)
+                    .foregroundStyle(appColors.secondaryText)
                 Text(timerText)
                     .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
-                    .monospacedDigit().foregroundStyle(viewModel.isShowingRest && viewModel.restTimeExpired ? Color.red : AppColors.text)
+                    .monospacedDigit().foregroundStyle(viewModel.isShowingRest && viewModel.restTimeExpired ? Color.red : appColors.text)
                     .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
             }
         }
@@ -463,6 +513,8 @@ import SwiftUI
 
 // Este componente da tamaño accesible a los controles circulares del entrenamiento.
 struct WorkoutActionButton: View {
+    @Environment(\.appColors) private var appColors
+
     let symbol: String
     let label: String
     var isEmphasized = false
@@ -472,9 +524,9 @@ struct WorkoutActionButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 21, weight: .semibold))
-                .foregroundStyle(isEmphasized ? AppColors.primary : AppColors.secondary)
+                .foregroundStyle(isEmphasized ? appColors.primary : appColors.secondary)
                 .frame(width: 58, height: 58)
-                .background(AppColors.accent.opacity(0.5), in: Circle())
+                .background(appColors.accent.opacity(0.5), in: Circle())
         }
         .buttonStyle(SoftPressStyle())
         .accessibilityLabel(label)
@@ -483,6 +535,8 @@ struct WorkoutActionButton: View {
 
 // Este botón ancho marca acciones importantes en la sesión.
 struct WorkoutPrimaryAction: View {
+    @Environment(\.appColors) private var appColors
+
     let title: String
     let symbol: String
     let action: () -> Void
@@ -491,11 +545,11 @@ struct WorkoutPrimaryAction: View {
         Button(action: action) {
             Label(title, systemImage: symbol)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundStyle(AppColors.surface)
+                .foregroundStyle(appColors.surface)
                 .frame(maxWidth: .infinity, minHeight: 60)
-                .background(AppColors.primary, in: Capsule())
-                .overlay(Capsule().stroke(AppColors.secondary, lineWidth: 1))
-                .shadow(color: AppColors.secondary.opacity(0.14), radius: 6, x: 0, y: 4)
+                .background(appColors.primary, in: Capsule())
+                .overlay(Capsule().stroke(appColors.secondary, lineWidth: 1))
+                .shadow(color: appColors.secondary.opacity(0.14), radius: 6, x: 0, y: 4)
         }
         .buttonStyle(SoftPressStyle())
     }

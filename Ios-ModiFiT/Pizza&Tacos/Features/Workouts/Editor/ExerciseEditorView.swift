@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ExerciseEditorView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.appColors) private var appColors
     @FocusState private var nameFocused: Bool
     @State private var exercise: WorkoutExercise
     @State private var baseline: WorkoutExercise
@@ -50,7 +50,7 @@ struct ExerciseEditorView: View {
             .font(.system(.body, design: .default))
             .foregroundStyle(.primary)
             .scrollContentBackground(.hidden)
-            .background(WorkoutTheme.background(scheme))
+            .background(appColors.background)
             .navigationTitle(route.isNew ? "Add Exercise" : "Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
@@ -69,7 +69,7 @@ struct ExerciseEditorView: View {
                 }
             }
         }
-        .tint(WorkoutTheme.tint(scheme))
+        .tint(appColors.primary)
         .interactiveDismissDisabled(exercise != baseline)
     }
     private func cancel() { if exercise != baseline { discard = true } else { dismiss() } }

@@ -12,6 +12,8 @@ final class ProgressViewModel: ObservableObject {
     @Published var period: ProgressPeriod = .week
     @Published var offset = 0
     @Published var selectedDay: Date?
+    @Published private(set) var activeEnergyByWorkoutID: [UUID: Double] = [:]
+    @Published private(set) var isLoadingEnergy = false
     let historyStore: WorkoutHistoryStore
     private var cancellables = Set<AnyCancellable>()
     private var calendar: Calendar { var value = Calendar.current; value.firstWeekday = 2; return value }
@@ -74,11 +76,21 @@ final class ProgressViewModel: ObservableObject {
         guard activeDayCount > 0 else { return 0 }
         return records.reduce(0) { $0 + $1.durationSeconds } / activeDayCount
     }
-    var muscleCounts: [(String, Int)] {
-        let names = ["Back", "Shoulders", "Arms", "Chest", "Core", "Glutes", "Legs"]
-        return names.map { name in (name, records.filter { $0.muscleGroups.contains(name) }.count) }
+    var linkedWorkoutIDs: [UUID] {
+        historyStore.records.compactMap(\.healthWorkoutID).sorted { $0.uuidString < $1.uuidString }
     }
-    var maxMuscleCount: Int { max(1, muscleCounts.map(\.1).max() ?? 0) }
+
+    func refreshActiveEnergy() async {
+        let ids = linkedWorkoutIDs
+        isLoadingEnergy = !ids.isEmpty
+        defer { isLoadingEnergy = false }
+        do {
+            let values = try await AppleHealthAccess.shared.activeEnergyByWorkoutID(ids)
+            if ids == linkedWorkoutIDs { activeEnergyByWorkoutID = values }
+        } catch {
+            if ids == linkedWorkoutIDs { activeEnergyByWorkoutID = [:] }
+        }
+    }
     var moodCounts: [(WorkoutFeeling, Int)] {
         WorkoutFeeling.allCases.map { mood in (mood, records.filter { $0.feeling == mood }.count) }
     }

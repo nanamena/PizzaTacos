@@ -68,10 +68,12 @@ struct WorkoutHistoryRecord: Codable, Identifiable {
     let durationSeconds: Int
     let completedExercises: Int
     let muscleGroups: [String]
+    var healthWorkoutID: UUID?
     var feeling: WorkoutFeeling?
 
     init(id: UUID = UUID(), routineID: String, routineName: String, completedAt: Date,
-         durationSeconds: Int, completedExercises: Int, muscleGroups: [String], feeling: WorkoutFeeling? = nil) {
+         durationSeconds: Int, completedExercises: Int, muscleGroups: [String],
+         healthWorkoutID: UUID? = nil, feeling: WorkoutFeeling? = nil) {
         self.id = id
         self.routineID = routineID
         self.routineName = routineName
@@ -79,6 +81,7 @@ struct WorkoutHistoryRecord: Codable, Identifiable {
         self.durationSeconds = durationSeconds
         self.completedExercises = completedExercises
         self.muscleGroups = muscleGroups
+        self.healthWorkoutID = healthWorkoutID
         self.feeling = feeling
     }
 }
@@ -86,20 +89,36 @@ import Foundation
 
 // Este modelo representa una rutina que aparece en la colección de entrenamientos.
 struct Routine: Identifiable, Hashable, Codable {
+    private static let gymSymbols = [
+        "dumbbell.fill",
+        "figure.strengthtraining.traditional",
+        "figure.strengthtraining.functional",
+        "figure.core.training",
+        "figure.indoor.cycle",
+        "figure.elliptical",
+        "figure.jumprope",
+        "figure.stair.stepper",
+        "figure.boxing",
+        "figure.cross.training"
+    ]
+
     let id: String
     let name: String
     let symbol: String
     let exercises: [FocusExercise]
     var createdAt: Date = Date()
+    var activityCategory: WorkoutActivityCategory?
 
-    private enum CodingKeys: String, CodingKey { case id, name, symbol, exercises, createdAt }
+    private enum CodingKeys: String, CodingKey { case id, name, symbol, exercises, createdAt, activityCategory }
 
-    init(id: String, name: String, symbol: String, exercises: [FocusExercise], createdAt: Date = Date()) {
+    init(id: String, name: String, symbol: String, exercises: [FocusExercise],
+         createdAt: Date = Date(), activityCategory: WorkoutActivityCategory? = nil) {
         self.id = id
         self.name = name
         self.symbol = symbol
         self.exercises = exercises
         self.createdAt = createdAt
+        self.activityCategory = activityCategory
     }
 
     init(from decoder: Decoder) throws {
@@ -109,10 +128,15 @@ struct Routine: Identifiable, Hashable, Codable {
         symbol = try values.decode(String.self, forKey: .symbol)
         exercises = try values.decode([FocusExercise].self, forKey: .exercises)
         createdAt = try values.decodeIfPresent(Date.self, forKey: .createdAt) ?? .distantPast
+        activityCategory = try values.decodeIfPresent(WorkoutActivityCategory.self, forKey: .activityCategory)
     }
 
     var exerciseCount: Int { exercises.count }
     var estimatedMinutes: Int { WorkoutTiming.totalMinutes(for: exercises) }
+
+    static func randomGymSymbol(excluding previous: String? = nil) -> String {
+        gymSymbols.filter { $0 != previous }.randomElement() ?? "dumbbell.fill"
+    }
 }
 
 enum WorkoutTiming {
