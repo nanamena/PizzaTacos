@@ -15,6 +15,18 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
         guard !started else { return }
         started = true
         model.onPendingChange = { [weak self] in self?.sendPending() }
+        model.onExerciseSelectionRequest = { request in
+            let session = WCSession.default
+            guard WCSession.isSupported(), session.activationState == .activated,
+                  session.isCompanionAppInstalled else { return false }
+            WorkoutSyncMessage.watchExerciseSelectionRequested(request).enqueue(on: session)
+            return true
+        }
+        model.onExerciseSelectionCancellation = { requestID in
+            let session = WCSession.default
+            guard WCSession.isSupported(), session.activationState == .activated else { return }
+            WorkoutSyncMessage.watchExerciseSelectionCancelled(requestID).enqueue(on: session)
+        }
         if WCSession.isSupported() {
             let session = WCSession.default
             observations = [
@@ -109,8 +121,18 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
         guard let data = userInfo["workout"] as? Data else { return }
         Task { @MainActor in
-            if case .imported(let id) = WorkoutSyncMessage.decode(data) {
+            guard let message = WorkoutSyncMessage.decode(data) else { return }
+            switch message {
+            case .imported(let id):
                 self.model.acknowledge(id)
+            case .watchExerciseSelectionSubmitted(let response):
+                self.model.receiveExerciseSelection(response)
+            case .watchExerciseSelectionCancelled(let requestID):
+                self.model.receiveExerciseSelectionCancelled(requestID: requestID)
+            case .watchExerciseSelectionUnavailable(let requestID):
+                self.model.receiveExerciseSelectionUnavailable(requestID: requestID)
+            default:
+                break
             }
             self.completeRefreshTasks()
         }

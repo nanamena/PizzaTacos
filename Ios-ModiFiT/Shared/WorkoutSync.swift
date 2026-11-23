@@ -22,9 +22,33 @@ struct RoutineCatalog: Codable {
     }
 }
 
+struct WatchExerciseSelectionRequest: Codable, Identifiable, Hashable {
+    let id: UUID
+    let routineID: String
+
+    init(id: UUID = UUID(), routineID: String) {
+        self.id = id
+        self.routineID = routineID
+    }
+}
+
+struct WatchExerciseSelectionResponse: Codable, Hashable {
+    let requestID: UUID
+    let selectedExerciseIDs: [String]
+}
+
+struct WatchExerciseSelectionState: Codable, Hashable {
+    let request: WatchExerciseSelectionRequest
+    var selectedExerciseIDs: [String]?
+}
+
 enum WorkoutSyncMessage: Codable {
     case completed(WorkoutHistoryRecord)
     case imported(UUID)
+    case watchExerciseSelectionRequested(WatchExerciseSelectionRequest)
+    case watchExerciseSelectionSubmitted(WatchExerciseSelectionResponse)
+    case watchExerciseSelectionCancelled(UUID)
+    case watchExerciseSelectionUnavailable(UUID)
 
     private struct Envelope: Codable {
         let version: Int
@@ -42,7 +66,7 @@ enum WorkoutSyncMessage: Codable {
               let data = try? JSONEncoder().encode(Envelope(version: 1, message: self)),
               !session.outstandingUserInfoTransfers.contains(where: { transfer in
                   guard let payload = transfer.userInfo["workout"] as? Data else { return false }
-                  return Self.decode(payload)?.identifier == identifier
+                  return Self.decode(payload)?.deduplicationKey == deduplicationKey
               })
         else { return }
         session.transferUserInfo(["workout": data])
@@ -52,6 +76,20 @@ enum WorkoutSyncMessage: Codable {
         switch self {
         case .completed(let record): record.id
         case .imported(let id): id
+        case .watchExerciseSelectionRequested(let request): request.id
+        case .watchExerciseSelectionSubmitted(let response): response.requestID
+        case .watchExerciseSelectionCancelled(let id), .watchExerciseSelectionUnavailable(let id): id
+        }
+    }
+
+    private var deduplicationKey: String {
+        switch self {
+        case .completed(let record): "completed:\(record.id)"
+        case .imported(let id): "imported:\(id)"
+        case .watchExerciseSelectionRequested(let request): "selection-request:\(request.id)"
+        case .watchExerciseSelectionSubmitted(let response): "selection-submitted:\(response.requestID)"
+        case .watchExerciseSelectionCancelled(let id): "selection-cancelled:\(id)"
+        case .watchExerciseSelectionUnavailable(let id): "selection-unavailable:\(id)"
         }
     }
 }

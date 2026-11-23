@@ -7,12 +7,13 @@ struct ContentView: View {
     @ObservedObject var themeStore: AppThemeStore
     @ObservedObject var historyStore: WorkoutHistoryStore
     @ObservedObject var workoutLibrary: WorkoutLibraryStore
+    @ObservedObject var watchSync: PhoneWorkoutSync
     @StateObject private var workoutPreferences = WorkoutPreferencesStore()
 
     var body: some View {
         TabView(selection: $selectedTab) {
             Tab("Workouts", systemImage: "dumbbell.fill", value: AppTab.workouts) {
-                WorkoutsView(viewModel: viewModel, historyStore: historyStore, workoutLibrary: workoutLibrary, workoutPreferences: workoutPreferences)
+                WorkoutsView(viewModel: viewModel, historyStore: historyStore, workoutLibrary: workoutLibrary, workoutPreferences: workoutPreferences, watchSync: watchSync)
             }
             Tab("Progress", systemImage: "chart.bar.fill", value: AppTab.progress) {
                 ProgressView(historyStore: historyStore)
@@ -35,5 +36,8 @@ struct ContentView: View {
         }
         .modifier(AppTheme(palette: themeStore.palette))
         .preferredColorScheme(nil)
+        .onChange(of: watchSync.pendingWatchExerciseSelectionRequest?.id, initial: true) { _, requestID in
+            if requestID != nil { selectedTab = .workouts }
+        }
     }
 }

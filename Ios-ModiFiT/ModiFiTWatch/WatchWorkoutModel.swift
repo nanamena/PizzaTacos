@@ -25,6 +25,7 @@ final class WatchWorkoutModel {
     var error: String?
 
     var routines: [Routine] { catalog?.routines ?? [] }
+    var exerciseSelectionState: WatchExerciseSelectionState? { storage.exerciseSelection }
     var hasCatalog: Bool { catalog != nil }
     var active: WatchWorkoutState? { storage.active }
     var result: WatchWorkoutResult? { storage.results.last }
@@ -33,6 +34,8 @@ final class WatchWorkoutModel {
         storage.results.filter { !$0.synced && $0.health != .saving }.map(\.record)
     }
     var onPendingChange: (() -> Void)?
+    var onExerciseSelectionRequest: ((WatchExerciseSelectionRequest) -> Bool)?
+    var onExerciseSelectionCancellation: ((UUID) -> Void)?
 
     init() {
         do {
@@ -68,6 +71,82 @@ final class WatchWorkoutModel {
         } catch {
             self.error = "Couldn’t sync routines from iPhone."
         }
+    }
+
+    @discardableResult
+    func requestExerciseSelection(for routine: Routine) -> Bool {
+        guard !busy, !routine.exercises.isEmpty else { return false }
+        guard let onExerciseSelectionRequest else {
+            error = "Couldn’t reach ModiFiT on iPhone."
+            return false
+        }
+        let request = WatchExerciseSelectionRequest(routineID: routine.id)
+        var updated = storage
+        updated.exerciseSelection = WatchExerciseSelectionState(request: request, selectedExerciseIDs: nil)
+        guard persist(updated) else { return false }
+        guard onExerciseSelectionRequest(request) else {
+            var cleared = storage
+            cleared.exerciseSelection = nil
+            persist(cleared)
+            error = "Couldn’t reach ModiFiT on iPhone."
+            return false
+        }
+        return true
+    }
+
+    func receiveExerciseSelection(_ response: WatchExerciseSelectionResponse) {
+        guard var selection = storage.exerciseSelection,
+              selection.request.id == response.requestID else { return }
+        guard let routine = routines.first(where: { $0.id == selection.request.routineID }) else {
+            clearInvalidExerciseSelection("This routine is no longer available on Apple Watch.")
+            return
+        }
+        let selectedIDs = Set(response.selectedExerciseIDs)
+        let availableIDs = Set(routine.exercises.map(\.id))
+        guard !selectedIDs.isEmpty,
+              selectedIDs.count == response.selectedExerciseIDs.count,
+              selectedIDs.isSubset(of: availableIDs) else {
+            clearInvalidExerciseSelection("The exercise selection from iPhone wasn’t valid.")
+            return
+        }
+        selection.selectedExerciseIDs = response.selectedExerciseIDs
+        var updated = storage
+        updated.exerciseSelection = selection
+        persist(updated)
+    }
+
+    func cancelExerciseSelection() {
+        guard let selection = storage.exerciseSelection else { return }
+        var updated = storage
+        updated.exerciseSelection = nil
+        guard persist(updated) else { return }
+        onExerciseSelectionCancellation?(selection.request.id)
+    }
+
+    func clearExerciseSelection() {
+        cancelExerciseSelection()
+    }
+
+    func receiveExerciseSelectionCancelled(requestID: UUID) {
+        guard storage.exerciseSelection?.request.id == requestID else { return }
+        var updated = storage
+        updated.exerciseSelection = nil
+        persist(updated)
+    }
+
+    func receiveExerciseSelectionUnavailable(requestID: UUID) {
+        guard storage.exerciseSelection?.request.id == requestID else { return }
+        var updated = storage
+        updated.exerciseSelection = nil
+        persist(updated)
+        error = "This routine isn’t available on iPhone."
+    }
+
+    private func clearInvalidExerciseSelection(_ message: String) {
+        var updated = storage
+        updated.exerciseSelection = nil
+        persist(updated)
+        error = message
     }
 
     func acknowledge(_ id: UUID) {
@@ -133,6 +212,7 @@ final class WatchWorkoutModel {
         let active = WatchWorkoutState(routine: routine, startedAt: .now, health: shouldRecord ? .recording : .off)
         var updated = storage
         updated.active = active
+        updated.exerciseSelection = nil
         guard persist(updated) else {
             if !storageReadable {
                 error = "Couldn’t save your workout on this Apple Watch."

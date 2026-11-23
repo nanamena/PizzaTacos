@@ -1,25 +1,39 @@
 import SwiftUI
 
 struct TrainingScreen: View {
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.appColors) private var appColors
 
     let routine: Routine
     let historyStore: WorkoutHistoryStore
     let workoutLibrary: WorkoutLibraryStore
     let onWorkoutCompleted: () -> Void
+    private let watchSelectionRequestID: UUID?
+    private let onSendSelectionToWatch: ((UUID, [String]) -> Bool)?
+    private let onCancelWatchSelection: ((UUID) -> Void)?
     @State private var viewModel: TrainingViewModel
     @State private var activeRoutine: Routine?
     @State private var activityCategory: WorkoutActivityCategory?
     @State private var showingCategoryPrompt = false
     @State private var showingHealthAccessHelp = false
+    @State private var showingWatchSendError = false
+    @State private var finishedWatchSelection = false
     @ObservedObject private var healthAccess = AppleHealthAccess.shared
 
+    private var isSelectingForWatch: Bool { watchSelectionRequestID != nil }
+
     init(routine: Routine, historyStore: WorkoutHistoryStore, workoutLibrary: WorkoutLibraryStore,
-         onWorkoutCompleted: @escaping () -> Void = {}) {
+         onWorkoutCompleted: @escaping () -> Void = {},
+         watchSelectionRequestID: UUID? = nil,
+         onSendSelectionToWatch: ((UUID, [String]) -> Bool)? = nil,
+         onCancelWatchSelection: ((UUID) -> Void)? = nil) {
         self.routine = routine
         self.historyStore = historyStore
         self.workoutLibrary = workoutLibrary
         self.onWorkoutCompleted = onWorkoutCompleted
+        self.watchSelectionRequestID = watchSelectionRequestID
+        self.onSendSelectionToWatch = onSendSelectionToWatch
+        self.onCancelWatchSelection = onCancelWatchSelection
         _viewModel = State(initialValue: TrainingViewModel(exercises: routine.exercises))
         _activityCategory = State(initialValue: routine.activityCategory)
     }
@@ -31,48 +45,11 @@ struct TrainingScreen: View {
             }
             .listRowBackground(appColors.card)
 
-            Section("Exercises") {
-                let minutes = viewModel.displayedMinutes
-                ForEach(viewModel.exercises) { exercise in
-                    ExerciseRow(
-                        exercise: exercise,
-                        minutes: minutes[exercise.id] ?? 0,
-                        isSelected: viewModel.selectedIDs.contains(exercise.id),
-                        onToggle: {
-                            withAnimation(.snappy) { viewModel.toggle(exercise) }
-                        }
-                    )
-                }
-            }
-            .listRowBackground(appColors.card)
+            exerciseSection
 
-            Section("Apple Health") {
-                if healthAccess.savesWorkouts {
-                    Picker("Workout type", selection: Binding(
-                        get: { activityCategory },
-                        set: saveActivityCategory
-                    )) {
-                        Text("Choose a type").tag(nil as WorkoutActivityCategory?)
-                        ForEach(WorkoutActivityCategory.allCases) { category in
-                            Text(category.title).tag(category as WorkoutActivityCategory?)
-                        }
-                    }
-                    Text("Choose the Apple activity type before recording this workout in Health.")
-                        .font(.footnote)
-                        .foregroundStyle(appColors.secondaryText)
-                } else {
-                    Button("Connect Apple Health") {
-                        Task {
-                            if !(await healthAccess.enable()) { showingHealthAccessHelp = true }
-                        }
-                    }
-                    .disabled(!healthAccess.isAvailable)
-                    Text("Completed workouts can use Apple's activity and energy data. ModiFiT works without Health access.")
-                        .font(.footnote)
-                        .foregroundStyle(appColors.secondaryText)
-                }
+            if !isSelectingForWatch {
+                appleHealthSection
             }
-            .listRowBackground(appColors.card)
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -81,6 +58,11 @@ struct TrainingScreen: View {
         .navigationTitle(routine.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
+            if isSelectingForWatch {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel", action: cancelWatchSelection)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button(viewModel.allSelected ? "Deselect All" : "Select All") {
                     withAnimation(.snappy) { viewModel.toggleAll() }
@@ -89,12 +71,9 @@ struct TrainingScreen: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            StartButton(isEnabled: viewModel.hasSelection) {
-                if healthAccess.savesWorkouts && activityCategory == nil {
-                    showingCategoryPrompt = true
-                } else {
-                    beginWorkout(recordInHealth: healthAccess.savesWorkouts)
-                }
+            StartButton(isEnabled: viewModel.hasSelection,
+                        title: startButtonTitle) {
+                handleStartButtonTap()
             }
         }
         .confirmationDialog("Choose an Apple Health workout type", isPresented: $showingCategoryPrompt) {
@@ -108,11 +87,102 @@ struct TrainingScreen: View {
         } message: {
             Text("Open the Health app and review ModiFiT's Workout permissions.")
         }
+        .alert("Couldn’t send selection", isPresented: $showingWatchSendError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Keep Apple Watch nearby and try again.")
+        }
         .task { healthAccess.refresh() }
         .navigationDestination(item: $activeRoutine) { activeRoutine in
             FocusWorkoutView(routine: activeRoutine, historyStore: historyStore, onWorkoutCompleted: onWorkoutCompleted)
         }
         .sensoryFeedback(.selection, trigger: viewModel.selectedIDs)
+        .onDisappear {
+            guard !finishedWatchSelection else { return }
+            cancelWatchSelection()
+        }
+    }
+
+    private func cancelWatchSelection() {
+        guard let requestID = watchSelectionRequestID, !finishedWatchSelection else { return }
+        finishedWatchSelection = true
+        onCancelWatchSelection?(requestID)
+        dismiss()
+    }
+
+    private func exerciseRow(_ exercise: FocusExercise, minutes: Int) -> some View {
+        ExerciseRow(
+            exercise: exercise,
+            minutes: minutes,
+            isSelected: viewModel.selectedIDs.contains(exercise.id),
+            onToggle: { toggleExercise(exercise) }
+        )
+    }
+
+    private func toggleExercise(_ exercise: FocusExercise) {
+        withAnimation(.snappy) { viewModel.toggle(exercise) }
+    }
+
+    private var startButtonTitle: String {
+        isSelectingForWatch ? "Send to Apple Watch" : "Start Workout"
+    }
+
+    private var exerciseSection: some View {
+        let minutes = viewModel.displayedMinutes
+        return Section("Exercises") {
+            ForEach(viewModel.exercises) { exercise in
+                exerciseRow(exercise, minutes: minutes[exercise.id] ?? 0)
+            }
+        }
+        .listRowBackground(appColors.card)
+    }
+
+    private func handleStartButtonTap() {
+        if let requestID = watchSelectionRequestID {
+            finishedWatchSelection = true
+            let didSend = onSendSelectionToWatch?(requestID, viewModel.selectedExercises.map(\.id)) ?? false
+            if didSend {
+                dismiss()
+            } else {
+                finishedWatchSelection = false
+                showingWatchSendError = true
+            }
+        } else if healthAccess.savesWorkouts && activityCategory == nil {
+            showingCategoryPrompt = true
+        } else {
+            beginWorkout(recordInHealth: healthAccess.savesWorkouts)
+        }
+    }
+
+    @ViewBuilder
+    private var appleHealthSection: some View {
+        Section("Apple Health") {
+            if healthAccess.savesWorkouts {
+                Picker("Workout type", selection: Binding(
+                    get: { activityCategory },
+                    set: saveActivityCategory
+                )) {
+                    Text("Choose a type").tag(nil as WorkoutActivityCategory?)
+                    ForEach(WorkoutActivityCategory.allCases) { category in
+                        Text(category.title).tag(category as WorkoutActivityCategory?)
+                    }
+                }
+                Text("Choose the Apple activity type before recording this workout in Health.")
+                    .font(.footnote)
+                    .foregroundStyle(appColors.secondaryText)
+            } else {
+                Button("Connect Apple Health") {
+                    Task {
+                        if !(await healthAccess.enable()) { showingHealthAccessHelp = true }
+                    }
+                }
+                .disabled(!healthAccess.isAvailable)
+                Text("Completed workouts can use Apple's activity and energy data. ModiFiT works without Health access.")
+                    .font(.footnote)
+                    .foregroundStyle(appColors.secondaryText)
+            }
+        }
+        .listRowBackground(appColors.card)
     }
 
     private func saveActivityCategory(_ category: WorkoutActivityCategory?) {
@@ -206,11 +276,12 @@ private struct StartButton: View {
     @Environment(\.appColors) private var appColors
 
     let isEnabled: Bool
+    let title: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text("Start Workout")
+            Text(title)
                 .font(.headline)
         }
         .buttonStyle(.glassProminent)

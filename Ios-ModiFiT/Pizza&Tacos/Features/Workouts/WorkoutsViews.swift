@@ -61,12 +61,14 @@ struct WorkoutsView: View {
     @ObservedObject var historyStore: WorkoutHistoryStore
     @ObservedObject var workoutLibrary: WorkoutLibraryStore
     @ObservedObject var workoutPreferences: WorkoutPreferencesStore
+    @ObservedObject var watchSync: PhoneWorkoutSync
     @State private var searchText = ""
     @State private var sortCriterion = RoutineSortCriterion.created
     @State private var isSortDescending = true
     @State private var editingRoutine: Routine?
     @State private var deletingRoutine: Routine?
     @State private var workoutEditor: WorkoutEditorRequest?
+    @State private var watchSelectionRoute: WatchSelectionRoute?
 
     private var historyMetricsByRoutineID: [String: RoutineHistoryMetrics] {
         historyStore.records.reduce(into: [String: RoutineHistoryMetrics]()) { result, record in
@@ -150,6 +152,23 @@ struct WorkoutsView: View {
             .navigationDestination(for: Routine.self) { routine in
                 TrainingScreen(routine: routine, historyStore: historyStore, workoutLibrary: workoutLibrary)
             }
+            .navigationDestination(item: $watchSelectionRoute) { route in
+                TrainingScreen(
+                    routine: route.routine,
+                    historyStore: historyStore,
+                    workoutLibrary: workoutLibrary,
+                    watchSelectionRequestID: route.request.id,
+                    onSendSelectionToWatch: { requestID, exerciseIDs in
+                        let didSubmit = watchSync.submitWatchExerciseSelection(requestID: requestID, selectedExerciseIDs: exerciseIDs)
+                        if didSubmit { watchSelectionRoute = nil }
+                        return didSubmit
+                    },
+                    onCancelWatchSelection: { requestID in
+                        watchSync.cancelWatchExerciseSelection(requestID: requestID)
+                        watchSelectionRoute = nil
+                    }
+                )
+            }
             .navigationDestination(item: $viewModel.importedWorkout) { request in
                 CreateWorkoutView(importedDraft: request.draft,
                                   onSaveImportedRoutines: workoutLibrary.saveRoutines,
@@ -191,6 +210,14 @@ struct WorkoutsView: View {
         .onChange(of: editingRoutine) { _, routine in
             if let routine { workoutEditor = WorkoutEditorRequest(routine: routine) }
         }
+        .onChange(of: watchSync.pendingWatchExerciseSelectionRequest?.id, initial: true) { _, _ in
+            guard let request = watchSync.pendingWatchExerciseSelectionRequest else { return }
+            guard let routine = workoutLibrary.standaloneRoutines.first(where: { $0.id == request.routineID }) else {
+                watchSync.cancelWatchExerciseSelection(requestID: request.id)
+                return
+            }
+            watchSelectionRoute = WatchSelectionRoute(request: request, routine: routine)
+        }
         .onChange(of: viewModel.importedWorkout?.id) { previous, current in
             guard previous != nil, current == nil else { return }
             Task { @MainActor in
@@ -205,6 +232,12 @@ struct WorkoutsView: View {
 private struct WorkoutEditorRequest: Identifiable, Hashable {
     let id = UUID()
     let routine: Routine?
+}
+
+private struct WatchSelectionRoute: Identifiable, Hashable {
+    let request: WatchExerciseSelectionRequest
+    let routine: Routine
+    var id: UUID { request.id }
 }
 
 // Este encabezado muestra el título y la acción de añadir rutina.

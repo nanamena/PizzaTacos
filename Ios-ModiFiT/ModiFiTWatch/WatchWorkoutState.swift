@@ -70,4 +70,5 @@ struct WatchWorkoutResult: Codable {
 struct WatchWorkoutStorage: Codable {
     var active: WatchWorkoutState?
     var results: [WatchWorkoutResult] = []
+    var exerciseSelection: WatchExerciseSelectionState?
 }

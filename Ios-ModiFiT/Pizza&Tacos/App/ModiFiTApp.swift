@@ -18,7 +18,7 @@ struct ModiFiTApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(themeStore: themeStore, historyStore: historyStore, workoutLibrary: workoutLibrary)
+            ContentView(themeStore: themeStore, historyStore: historyStore, workoutLibrary: workoutLibrary, watchSync: watchSync)
                 .task { await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded() }
                 .onChange(of: themeStore.palette, initial: true) { _, palette in
                     watchSync.updatePalette(palette)
