@@ -17,7 +17,7 @@ struct AboutSettingsView: View {
 
                 VStack(alignment: .leading, spacing: 9) {
                     Text("Privacy").font(.headline).foregroundStyle(appColors.text)
-                    Text("Your routines, workout history, and preferences stay on this device. When you connect Apple Health, ModiFiT saves completed workouts there and reads Apple's active energy for those workouts. ModiFiT doesn't estimate calories or infer muscle groups.")
+                    Text("ModiFiT sends routines to your paired Apple Watch and syncs completed workout summaries back to this iPhone. When you connect Apple Health, ModiFiT saves completed workouts there and reads Apple's active energy for those workouts. ModiFiT doesn't estimate calories or infer muscle groups.")
                         .font(.subheadline).foregroundStyle(appColors.secondaryText)
                 }.padding(17).settingsCardStyle()
 

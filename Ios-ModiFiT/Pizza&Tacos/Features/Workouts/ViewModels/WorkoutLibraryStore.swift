@@ -41,20 +41,13 @@ final class WorkoutLibraryStore: ObservableObject {
 
     private let storageKey = "modifit.workoutLibrary.v1"
     private let persistenceQueue = DispatchQueue(label: "com.modifit.workout-library-persistence")
-    private var hasLocalChanges = false
+    let catalogDidChange = PassthroughSubject<Void, Never>()
 
     init() {
-        let storageKey = storageKey
-        persistenceQueue.async { [weak self] in
-            let data = UserDefaults.standard.data(forKey: storageKey)
-            Task { @MainActor [weak self] in
-                guard let data,
-                      let saved = try? JSONDecoder().decode(SavedWorkoutLibrary.self, from: data) else { return }
-                guard let self, !self.hasLocalChanges else { return }
-                self.standaloneRoutines = saved.standaloneRoutines
-                // Save again so legacy plan days become regular routines in storage.
-                self.persist()
-            }
+        if let data = UserDefaults.standard.data(forKey: storageKey),
+           let saved = try? JSONDecoder().decode(SavedWorkoutLibrary.self, from: data) {
+            standaloneRoutines = saved.standaloneRoutines
+            persist()
         }
     }
 
@@ -89,10 +82,10 @@ final class WorkoutLibraryStore: ObservableObject {
     private func persist() {
         let saved = SavedWorkoutLibrary(standaloneRoutines: standaloneRoutines)
         let storageKey = storageKey
-        hasLocalChanges = true
         guard let data = try? JSONEncoder().encode(saved) else { return }
         persistenceQueue.async {
             UserDefaults.standard.set(data, forKey: storageKey)
         }
+        catalogDidChange.send()
     }
 }

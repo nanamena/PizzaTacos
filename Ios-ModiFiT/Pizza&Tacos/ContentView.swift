@@ -4,9 +4,9 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab: AppTab = .workouts
     @StateObject private var viewModel = WorkoutsViewModel()
-    @StateObject private var themeStore = AppThemeStore()
-    @StateObject private var historyStore = WorkoutHistoryStore()
-    @StateObject private var workoutLibrary = WorkoutLibraryStore()
+    @ObservedObject var themeStore: AppThemeStore
+    @ObservedObject var historyStore: WorkoutHistoryStore
+    @ObservedObject var workoutLibrary: WorkoutLibraryStore
     @StateObject private var workoutPreferences = WorkoutPreferencesStore()
 
     var body: some View {

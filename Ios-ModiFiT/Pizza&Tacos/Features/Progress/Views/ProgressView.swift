@@ -34,6 +34,7 @@ struct ProgressView: View {
             .frame(maxWidth: 620).padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 18).frame(maxWidth: .infinity)
         }
         .background(appColors.background.ignoresSafeArea())
+        .refreshable { await viewModel.refreshActiveEnergy() }
         .task(id: viewModel.linkedWorkoutIDs) { await viewModel.refreshActiveEnergy() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await viewModel.refreshActiveEnergy() } }

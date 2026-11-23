@@ -6,15 +6,16 @@ import HealthKit
 @MainActor
 final class FocusWorkoutViewModel: ObservableObject {
     @Published private(set) var state: WorkoutSessionState = .ready
-    @Published private(set) var exerciseIndex = 0
-    @Published private(set) var currentSet = 1
+    @Published private var position = WorkoutPosition()
+    var exerciseIndex: Int { position.exerciseIndex }
+    var currentSet: Int { position.set }
     @Published private(set) var remainingSeconds = 0
     @Published private(set) var restTimeExpired = false
     @Published private(set) var restOvertimeSeconds = 0
     @Published private(set) var restLeadsToNextExercise = false
     @Published private(set) var countdownDuration = 0
-    @Published private(set) var completedExercises = 0
-    @Published private(set) var completedSets = 0
+    var completedExercises: Int { position.completedExercises }
+    var completedSets: Int { position.completedSets }
     @Published private(set) var sessionDurationSeconds = 0
     @Published var showingEndConfirmation = false
     @Published var showingExitConfirmation = false
@@ -170,20 +171,11 @@ final class FocusWorkoutViewModel: ObservableObject {
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
-        completedSets += 1
-
         let finishedExercise = currentExercise
         restLeadsToNextExercise = currentSet >= finishedExercise.sets
-        if currentSet >= finishedExercise.sets {
-            completedExercises += 1
-            if exerciseIndex + 1 >= exercises.count {
-                completeWorkout(endedEarly: false)
-                return
-            }
-            exerciseIndex += 1
-            currentSet = 1
-        } else {
-            currentSet += 1
+        if position.finishSet(in: exercises) {
+            completeWorkout(endedEarly: false)
+            return
         }
 
         activeRestDuration = max(0, finishedExercise.restSeconds)
@@ -218,14 +210,11 @@ final class FocusWorkoutViewModel: ObservableObject {
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
-        exerciseIndex = 0
-        currentSet = 1
+        position = WorkoutPosition()
         restTimeExpired = false
         restLeadsToNextExercise = false
         restOvertimeStartedAt = nil
         restOvertimeSeconds = 0
-        completedExercises = 0
-        completedSets = 0
         totalPausedSeconds = 0
         pauseStartedAt = nil
         sessionStartedAt = nil
