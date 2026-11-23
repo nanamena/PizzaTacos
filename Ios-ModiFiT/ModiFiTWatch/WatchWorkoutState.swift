@@ -5,6 +5,7 @@ struct WatchWorkoutState: Codable {
     let routine: Routine
     let startedAt: Date
     var position = WorkoutPosition()
+    var setStartedAt: Date?
     var deadline: Date?
     var resting = false
     var pausedAt: Date?
@@ -13,8 +14,13 @@ struct WatchWorkoutState: Codable {
 
     var exercise: FocusExercise { routine.exercises[position.exerciseIndex] }
 
-    init(routine: Routine, startedAt: Date, health: WatchHealthStatus) {
-        id = UUID()
+    var liveWorkout: LiveWorkoutSnapshot {
+        LiveWorkoutSnapshot(id: id, routine: routine, position: position, resting: resting,
+                            setStartedAt: setStartedAt ?? startedAt, deadline: deadline, pausedAt: pausedAt)
+    }
+
+    init(id: UUID = UUID(), routine: Routine, startedAt: Date, health: WatchHealthStatus) {
+        self.id = id
         self.routine = routine
         self.startedAt = startedAt
         self.health = health
@@ -35,6 +41,7 @@ struct WatchWorkoutState: Codable {
 
     mutating func startSet(at date: Date) {
         resting = false
+        setStartedAt = date
         deadline = exercise.durationSeconds.map { date.addingTimeInterval(Double($0)) }
     }
 
@@ -43,6 +50,7 @@ struct WatchWorkoutState: Codable {
             let interval = max(0, date.timeIntervalSince(pausedAt))
             pausedSeconds += interval
             deadline = deadline?.addingTimeInterval(interval)
+            setStartedAt = (setStartedAt ?? startedAt).addingTimeInterval(interval)
             self.pausedAt = nil
         } else {
             pausedAt = date

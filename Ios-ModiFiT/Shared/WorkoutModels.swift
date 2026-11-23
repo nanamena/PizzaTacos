@@ -27,17 +27,6 @@ enum WorkoutSessionState: Equatable {
     case completed
 }
 
-// Esta ruta identifica las hojas de ejercicios y sus detalles.
-enum FocusWorkoutSheet: Identifiable {
-    case exerciseList
-
-    var id: String {
-        switch self {
-        case .exerciseList: "exercise-list"
-        }
-    }
-}
-
 import Foundation
 
 // Estas categorías representan la respuesta de ánimo después de una rutina completada.

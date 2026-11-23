@@ -13,8 +13,9 @@ final class WatchWorkoutHealth: NSObject, HKWorkoutSessionDelegate {
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
     var canSave: Bool { isAvailable && store.authorizationStatus(for: .workoutType()) == .sharingAuthorized }
 
-    func authorize() async throws {
-        try await store.requestAuthorization(toShare: [.workoutType()], read: [.workoutType(), HKQuantityType(.activeEnergyBurned)])
+    func requestAccessIfNeeded() async {
+        guard isAvailable, store.authorizationStatus(for: .workoutType()) == .notDetermined else { return }
+        try? await store.requestAuthorization(toShare: [.workoutType()], read: [.workoutType(), HKQuantityType(.activeEnergyBurned)])
     }
 
     func start(category: WorkoutActivityCategory, id: UUID, at date: Date) async throws {

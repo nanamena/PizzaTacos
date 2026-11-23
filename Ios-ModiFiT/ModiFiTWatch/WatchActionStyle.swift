@@ -9,7 +9,7 @@ struct WatchActionStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(.body, design: .rounded, weight: .semibold))
+            .font(.system(.body, weight: .semibold))
             .multilineTextAlignment(.center)
             .foregroundStyle(foreground)
             .padding(.horizontal, 8)

@@ -16,7 +16,7 @@ struct WatchRoutineRow: View {
 
             VStack(alignment: .leading) {
                 Text(routine.name)
-                    .font(.system(.headline, design: .rounded))
+                    .font(.system(.headline))
                     .foregroundStyle(.primary)
                 ViewThatFits(in: .horizontal) {
                     Text("\(exerciseCount) · \(estimatedTime)")

@@ -5,6 +5,7 @@ import WatchKit
 @MainActor
 final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate {
     let model = WatchWorkoutModel()
+    let live = LiveWorkoutLink()
     private var refreshTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
     private var observations: [NSKeyValueObservation] = []
     private var started = false
@@ -14,19 +15,14 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
     func start() {
         guard !started else { return }
         started = true
+        model.requestStart = { [weak self] id in await self?.live.requestWatchStart(id: id) }
+        model.cancelStart = { [weak self] in self?.live.clearWatchStart() }
+        model.onLiveWorkoutChange = { [weak self] workout in self?.live.publish(workout) }
+        live.onAction = { [weak self] action in self?.model.applyLiveWorkoutAction(action) }
+        live.onClockRefresh = { [weak self] in self?.model.refresh() }
+        live.publish(model.active?.liveWorkout)
+        live.clearWatchStart()
         model.onPendingChange = { [weak self] in self?.sendPending() }
-        model.onExerciseSelectionRequest = { request in
-            let session = WCSession.default
-            guard WCSession.isSupported(), session.activationState == .activated,
-                  session.isCompanionAppInstalled else { return false }
-            WorkoutSyncMessage.watchExerciseSelectionRequested(request).enqueue(on: session)
-            return true
-        }
-        model.onExerciseSelectionCancellation = { requestID in
-            let session = WCSession.default
-            guard WCSession.isSupported(), session.activationState == .activated else { return }
-            WorkoutSyncMessage.watchExerciseSelectionCancelled(requestID).enqueue(on: session)
-        }
         if WCSession.isSupported() {
             let session = WCSession.default
             observations = [
@@ -49,6 +45,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
 
     func applicationDidBecomeActive() {
         model.refresh()
+        live.publish(model.active?.liveWorkout)
+        live.refreshConnection()
         sendPending()
     }
 
@@ -67,6 +65,9 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.activationState == .activated, session.isCompanionAppInstalled else { return }
+        model.cancelLegacyExerciseSelection { requestID in
+            WorkoutSyncMessage.watchExerciseSelectionCancelled(requestID).enqueue(on: session)
+        }
         for record in model.pending {
             WorkoutSyncMessage.completed(record).enqueue(on: session)
         }
@@ -81,15 +82,25 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor in
-            if activationState == .activated { self.applyLatestContext() }
+            if activationState == .activated {
+                self.applyLatestContext()
+                self.live.refreshConnection()
+            }
             self.sendPending()
             self.completeRefreshTasks()
         }
     }
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
-        guard session.isReachable else { return }
-        Task { @MainActor in self.sendPending() }
+        Task { @MainActor in
+            self.live.refreshConnection()
+            self.sendPending()
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessageData messageData: Data,
+                             replyHandler: @escaping (Data) -> Void) {
+        Task { @MainActor in replyHandler(self.live.reply(to: messageData)) }
     }
 
     nonisolated func session(_ session: WCSession, didReceive file: WCSessionFile) {
@@ -116,6 +127,10 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
         let context = WCSession.default.receivedApplicationContext
         if let palette = context[WorkoutAppearanceSync.paletteKey] as? String { model.receivePalette(palette) }
         if let catalog = context["routineCatalog"] as? Data { model.receiveCatalog(catalog) }
+        if let preference = context[WorkoutHealthPreferenceSync.contextKey] as? Data {
+            model.receiveHealthPreference(preference)
+        }
+        live.receiveContext()
     }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
@@ -125,12 +140,8 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate, WCSessionDelegate
             switch message {
             case .imported(let id):
                 self.model.acknowledge(id)
-            case .watchExerciseSelectionSubmitted(let response):
-                self.model.receiveExerciseSelection(response)
-            case .watchExerciseSelectionCancelled(let requestID):
-                self.model.receiveExerciseSelectionCancelled(requestID: requestID)
-            case .watchExerciseSelectionUnavailable(let requestID):
-                self.model.receiveExerciseSelectionUnavailable(requestID: requestID)
+            case .watchExerciseSelectionCancelled(let requestID), .watchExerciseSelectionUnavailable(let requestID):
+                self.model.clearLegacyExerciseSelection(requestID: requestID)
             default:
                 break
             }

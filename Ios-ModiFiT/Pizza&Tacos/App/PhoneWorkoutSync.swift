@@ -7,11 +7,22 @@ import WatchConnectivity
 final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
     private let library: WorkoutLibraryStore
     private let history: WorkoutHistoryStore
+    private let workoutPreferences: WorkoutPreferencesStore
+
+    private var healthMode: WatchWorkoutHealthMode {
+        workoutPreferences.health?.mode ?? .withoutAppleHealth
+    }
     private let logger = Logger(subsystem: "ModiFiT", category: "WatchSync")
     private let pendingSelectionKey = "modifit.watchExerciseSelection.pending.v1"
     private var libraryChanges: AnyCancellable?
     private var catalogNeedsSending = true
     private var palette: AppPalette?
+    let live = LiveWorkoutLink()
+    private let starts = WorkoutStartCoordinator()
+    private var preparedToStart = false
+    @Published private(set) var workoutStartIssue = false
+    private var pendingPhoneStart: Routine?
+    @Published private(set) var phoneWorkout: FocusWorkoutViewModel?
     @Published private(set) var pendingWatchExerciseSelectionRequest: WatchExerciseSelectionRequest?
     private var installationID: UUID {
         let defaults = UserDefaults.standard
@@ -22,10 +33,24 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
         return id
     }
 
-    init(library: WorkoutLibraryStore, history: WorkoutHistoryStore) {
+    init(library: WorkoutLibraryStore, history: WorkoutHistoryStore, workoutPreferences: WorkoutPreferencesStore) {
         self.library = library
         self.history = history
+        self.workoutPreferences = workoutPreferences
         super.init()
+        live.publish(nil)
+        live.onPeerState = { [weak self] peer in self?.starts.observeWatch(peer) }
+        live.onWatchClaim = { [weak self] peer in
+            guard let self, self.preparedToStart else { return nil }
+            return self.starts.reserveWatch(peer, healthMode: self.healthMode)
+        }
+        Task {
+            await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded()
+            starts.recoverPhoneReservation()
+            preparedToStart = true
+        }
+        live.onAction = { [weak self] action in self?.phoneWorkout?.applyLiveWorkoutAction(action) }
+        live.onClockRefresh = { [weak self] in self?.phoneWorkout?.refreshCountdown() }
         if let data = UserDefaults.standard.data(forKey: pendingSelectionKey) {
             pendingWatchExerciseSelectionRequest = try? JSONDecoder().decode(WatchExerciseSelectionRequest.self, from: data)
         }
@@ -44,25 +69,84 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func refresh() {
+        phoneWorkout?.refreshCountdown()
         sendCatalogIfNeeded()
         sendPaletteIfNeeded()
+        syncHealthPreference()
+        live.refreshConnection()
+    }
+
+    func startPhoneWorkout(_ routine: Routine) {
+        guard phoneWorkout == nil, !routine.exercises.isEmpty else { return }
+        pendingPhoneStart = routine
+        live.receiveContext()
+        guard live.remoteWorkout == nil else {
+            dismissWorkoutStartIssue()
+            return
+        }
+        let session = WCSession.default
+        let canVerifyWatch = !WCSession.isSupported() || (session.activationState == .activated
+            && (!session.isPaired || !session.isWatchAppInstalled || live.peerState?.supportsStartClaim == true))
+        guard preparedToStart, canVerifyWatch else {
+            workoutStartIssue = true
+            live.refreshConnection()
+            return
+        }
+
+        var preparedRoutine = routine
+        preparedRoutine.activityCategory = healthMode.activityCategory
+        let workout = FocusWorkoutViewModel(routine: preparedRoutine, historyStore: history)
+        let id = workout.workoutID
+        guard starts.reservePhone(id: id) else {
+            workoutStartIssue = true
+            live.refreshConnection()
+            return
+        }
+        dismissWorkoutStartIssue()
+        workout.onLiveWorkoutChange = { [weak self, weak workout] snapshot in
+            guard let self else { return }
+            self.live.publish(snapshot)
+            if workout?.state == .completed { self.starts.releasePhone(id: id) }
+        }
+        phoneWorkout = workout
+        Task { await workout.startWorkout() }
+    }
+
+    func retryWorkoutStart() {
+        guard let routine = pendingPhoneStart else { return }
+        startPhoneWorkout(routine)
+    }
+
+    func hideWorkoutStartIssue() { workoutStartIssue = false }
+
+    func dismissWorkoutStartIssue() {
+        pendingPhoneStart = nil
+        workoutStartIssue = false
+    }
+
+    func dismissPhoneWorkout() {
+        guard phoneWorkout?.state == .completed else { return }
+        phoneWorkout = nil
     }
 
     @discardableResult
-    func submitWatchExerciseSelection(requestID: UUID, selectedExerciseIDs: [String]) -> Bool {
+    func submitWatchExerciseSelection(_ response: WatchExerciseSelectionResponse) -> Bool {
         guard let request = pendingWatchExerciseSelectionRequest,
-              request.id == requestID,
+              request.id == response.requestID,
               let routine = library.standaloneRoutines.first(where: { $0.id == request.routineID }) else { return false }
-        let selectedIDs = Set(selectedExerciseIDs)
+        let selectedIDs = Set(response.selectedExerciseIDs)
         let availableIDs = Set(routine.exercises.map(\.id))
         let session = WCSession.default
-        guard !selectedIDs.isEmpty, selectedIDs.count == selectedExerciseIDs.count,
+        guard !selectedIDs.isEmpty, selectedIDs.count == response.selectedExerciseIDs.count,
               selectedIDs.isSubset(of: availableIDs), session.activationState == .activated,
               session.isPaired, session.isWatchAppInstalled else { return false }
 
-        WorkoutSyncMessage.watchExerciseSelectionSubmitted(
-            WatchExerciseSelectionResponse(requestID: requestID, selectedExerciseIDs: selectedExerciseIDs)
-        ).enqueue(on: .default)
+        let compatibleResponse = WatchExerciseSelectionResponse(
+            requestID: response.requestID,
+            selectedExerciseIDs: response.selectedExerciseIDs,
+            healthMode: request.supportsHealthMode == true ? healthMode : nil
+        )
+        guard WorkoutSyncMessage.watchExerciseSelectionSubmitted(compatibleResponse).enqueue(on: session) else { return false }
         setPendingWatchExerciseSelectionRequest(nil)
         return true
     }
@@ -73,6 +157,21 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
             WorkoutSyncMessage.watchExerciseSelectionCancelled(requestID).enqueue(on: .default)
         }
         setPendingWatchExerciseSelectionRequest(nil)
+    }
+
+    func syncHealthPreference() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isPaired, session.isWatchAppInstalled,
+              let data = try? JSONEncoder().encode(healthMode) else { return }
+        var context = session.applicationContext
+        guard context[WorkoutHealthPreferenceSync.contextKey] as? Data != data else { return }
+        context[WorkoutHealthPreferenceSync.contextKey] = data
+        do {
+            try session.updateApplicationContext(context)
+        } catch {
+            logger.error("Could not sync the Watch Apple Health preference.")
+        }
     }
 
     private func sendPaletteIfNeeded() {
@@ -130,7 +229,9 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
         Task { @MainActor in self.connectedWatchChanged() }
     }
 
-    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
+    nonisolated func sessionDidBecomeInactive(_ session: WCSession) {
+        Task { @MainActor in self.live.resetPeer() }
+    }
 
     nonisolated func sessionDidDeactivate(_ session: WCSession) {
         session.activate()
@@ -138,6 +239,22 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
 
     nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
         Task { @MainActor in self.connectedWatchChanged() }
+    }
+
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
+        Task { @MainActor in
+            self.syncHealthPreference()
+            self.live.refreshConnection()
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        Task { @MainActor in self.live.receiveContext() }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessageData messageData: Data,
+                             replyHandler: @escaping (Data) -> Void) {
+        Task { @MainActor in replyHandler(self.live.reply(to: messageData)) }
     }
 
     nonisolated func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {

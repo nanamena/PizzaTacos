@@ -106,6 +106,7 @@ struct PermissionsView: View {
     @Environment(\.appColors) private var appColors
 
     @ObservedObject var viewModel: PermissionsViewModel
+    @ObservedObject var workoutPreferences: WorkoutPreferencesStore
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -127,7 +128,21 @@ struct PermissionsView: View {
                                          detail: "Sounds, timers and notifications.",
                                          isOn: viewModel.audioEnabled, onToggle: viewModel.setAudioEnabled)
                     SettingsDivider()
-                    HealthPermissionRow()
+                    NavigationLink {
+                        AppleHealthSettingsView(preferences: workoutPreferences)
+                    } label: {
+                        HStack(spacing: 12) {
+                            SettingsIcon(symbol: "heart.fill")
+                            Text("Apple Health")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(appColors.text)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(appColors.secondaryText)
+                        }
+                        .padding(.vertical, 13)
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 14).settingsCardStyle()
 
@@ -199,58 +214,6 @@ private struct PermissionSettingRow: View {
     }
 }
 
-// Esta fila presenta el flujo HealthKit con un estado explícito y permiso real.
-private struct HealthPermissionRow: View {
-    @Environment(\.appColors) private var appColors
-    @ObservedObject private var healthAccess = AppleHealthAccess.shared
-    @State private var showAccessHelp = false
-
-    var body: some View {
-        HStack(spacing: 12) {
-            SettingsIcon(symbol: "heart.fill")
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Apple Health").font(.system(size: 15, weight: .semibold, design: .rounded)).foregroundStyle(appColors.text)
-                Text(healthDetail).font(.system(size: 11, design: .rounded)).foregroundStyle(appColors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 5)
-            if healthAccess.isAvailable {
-                Button {
-                    if healthAccess.savesWorkouts {
-                        healthAccess.disable()
-                    } else {
-                        Task {
-                            if !(await healthAccess.enable()) {
-                                showAccessHelp = true
-                            }
-                        }
-                    }
-                } label: {
-                    Text(healthAccess.savesWorkouts ? "Stop Saving" : "Connect")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(appColors.primary)
-                }
-            } else {
-                Image(systemName: "minus.circle").foregroundStyle(appColors.secondaryText)
-                    .accessibilityLabel("Apple Health unavailable")
-            }
-        }
-        .padding(.vertical, 13)
-        .alert("Apple Health access", isPresented: $showAccessHelp) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Open the Health app and review ModiFiT's Workout permissions.")
-        }
-    }
-
-    private var healthDetail: String {
-        if !healthAccess.isAvailable { return "Apple Health is unavailable on this device." }
-        if healthAccess.savesWorkouts { return "Save completed workouts. Show Apple's active energy when available." }
-        if healthAccess.canWriteWorkouts { return "Workout access is allowed. Saving is off in ModiFiT." }
-        return "Connect to save completed workouts and see Apple Health energy."
-    }
-}
-
 // Este divisor separa los controles dentro de la tarjeta de permisos.
 private struct SettingsDivider: View {
     @Environment(\.appColors) private var appColors
@@ -291,8 +254,10 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
+                    AppleHealthSettingsView(preferences: workoutPreferences, isEmbedded: true)
+
                     NavigationLink {
-                        PermissionsView(viewModel: permissionsViewModel)
+                        PermissionsView(viewModel: permissionsViewModel, workoutPreferences: workoutPreferences)
                     } label: {
                         SettingsNavigationRow(item: viewModel.navigationItems[0])
                     }.buttonStyle(.plain)

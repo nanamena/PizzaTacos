@@ -1,41 +1,30 @@
 import SwiftUI
 
 struct TrainingScreen: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.appColors) private var appColors
 
     let routine: Routine
-    let historyStore: WorkoutHistoryStore
-    let workoutLibrary: WorkoutLibraryStore
-    let onWorkoutCompleted: () -> Void
-    private let watchSelectionRequestID: UUID?
-    private let onSendSelectionToWatch: ((UUID, [String]) -> Bool)?
+    let onStartWorkout: (Routine) -> Void
+    private let watchSelectionRequest: WatchExerciseSelectionRequest?
+    private let onSendSelectionToWatch: ((WatchExerciseSelectionResponse) -> Bool)?
     private let onCancelWatchSelection: ((UUID) -> Void)?
     @State private var viewModel: TrainingViewModel
-    @State private var activeRoutine: Routine?
-    @State private var activityCategory: WorkoutActivityCategory?
-    @State private var showingCategoryPrompt = false
-    @State private var showingHealthAccessHelp = false
     @State private var showingWatchSendError = false
     @State private var finishedWatchSelection = false
-    @ObservedObject private var healthAccess = AppleHealthAccess.shared
 
-    private var isSelectingForWatch: Bool { watchSelectionRequestID != nil }
+    private var isSelectingForWatch: Bool { watchSelectionRequest != nil }
 
-    init(routine: Routine, historyStore: WorkoutHistoryStore, workoutLibrary: WorkoutLibraryStore,
-         onWorkoutCompleted: @escaping () -> Void = {},
-         watchSelectionRequestID: UUID? = nil,
-         onSendSelectionToWatch: ((UUID, [String]) -> Bool)? = nil,
+    init(routine: Routine,
+         onStartWorkout: @escaping (Routine) -> Void = { _ in },
+         watchSelectionRequest: WatchExerciseSelectionRequest? = nil,
+         onSendSelectionToWatch: ((WatchExerciseSelectionResponse) -> Bool)? = nil,
          onCancelWatchSelection: ((UUID) -> Void)? = nil) {
         self.routine = routine
-        self.historyStore = historyStore
-        self.workoutLibrary = workoutLibrary
-        self.onWorkoutCompleted = onWorkoutCompleted
-        self.watchSelectionRequestID = watchSelectionRequestID
+        self.onStartWorkout = onStartWorkout
+        self.watchSelectionRequest = watchSelectionRequest
         self.onSendSelectionToWatch = onSendSelectionToWatch
         self.onCancelWatchSelection = onCancelWatchSelection
         _viewModel = State(initialValue: TrainingViewModel(exercises: routine.exercises))
-        _activityCategory = State(initialValue: routine.activityCategory)
     }
 
     var body: some View {
@@ -46,10 +35,6 @@ struct TrainingScreen: View {
             .listRowBackground(appColors.card)
 
             exerciseSection
-
-            if !isSelectingForWatch {
-                appleHealthSection
-            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
@@ -76,38 +61,18 @@ struct TrainingScreen: View {
                 handleStartButtonTap()
             }
         }
-        .confirmationDialog("Choose an Apple Health workout type", isPresented: $showingCategoryPrompt) {
-            Button("Start Without Apple Health") { beginWorkout(recordInHealth: false) }
-            Button("Choose Workout Type", role: .cancel) { }
-        } message: {
-            Text("Select a type above to save this session in Apple Health, or continue locally.")
-        }
-        .alert("Apple Health access", isPresented: $showingHealthAccessHelp) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Open the Health app and review ModiFiT's Workout permissions.")
-        }
         .alert("Couldn’t send selection", isPresented: $showingWatchSendError) {
             Button("OK", role: .cancel) { }
         } message: {
             Text("Keep Apple Watch nearby and try again.")
         }
-        .task { healthAccess.refresh() }
-        .navigationDestination(item: $activeRoutine) { activeRoutine in
-            FocusWorkoutView(routine: activeRoutine, historyStore: historyStore, onWorkoutCompleted: onWorkoutCompleted)
-        }
         .sensoryFeedback(.selection, trigger: viewModel.selectedIDs)
-        .onDisappear {
-            guard !finishedWatchSelection else { return }
-            cancelWatchSelection()
-        }
     }
 
     private func cancelWatchSelection() {
-        guard let requestID = watchSelectionRequestID, !finishedWatchSelection else { return }
+        guard let request = watchSelectionRequest, !finishedWatchSelection else { return }
         finishedWatchSelection = true
-        onCancelWatchSelection?(requestID)
-        dismiss()
+        onCancelWatchSelection?(request.id)
     }
 
     private func exerciseRow(_ exercise: FocusExercise, minutes: Int) -> some View {
@@ -138,66 +103,24 @@ struct TrainingScreen: View {
     }
 
     private func handleStartButtonTap() {
-        if let requestID = watchSelectionRequestID {
+        if let request = watchSelectionRequest {
+            guard !finishedWatchSelection else { return }
+            let response = WatchExerciseSelectionResponse(
+                requestID: request.id,
+                selectedExerciseIDs: viewModel.selectedExercises.map(\.id),
+                healthMode: nil
+            )
             finishedWatchSelection = true
-            let didSend = onSendSelectionToWatch?(requestID, viewModel.selectedExercises.map(\.id)) ?? false
-            if didSend {
-                dismiss()
-            } else {
+            if onSendSelectionToWatch?(response) != true {
                 finishedWatchSelection = false
                 showingWatchSendError = true
             }
-        } else if healthAccess.savesWorkouts && activityCategory == nil {
-            showingCategoryPrompt = true
         } else {
-            beginWorkout(recordInHealth: healthAccess.savesWorkouts)
+            let exercises = viewModel.selectedExercises
+            guard !exercises.isEmpty else { return }
+            onStartWorkout(Routine(id: routine.id, name: routine.name, symbol: routine.symbol,
+                                   exercises: exercises, createdAt: routine.createdAt))
         }
-    }
-
-    @ViewBuilder
-    private var appleHealthSection: some View {
-        Section("Apple Health") {
-            if healthAccess.savesWorkouts {
-                Picker("Workout type", selection: Binding(
-                    get: { activityCategory },
-                    set: saveActivityCategory
-                )) {
-                    Text("Choose a type").tag(nil as WorkoutActivityCategory?)
-                    ForEach(WorkoutActivityCategory.allCases) { category in
-                        Text(category.title).tag(category as WorkoutActivityCategory?)
-                    }
-                }
-                Text("Choose the Apple activity type before recording this workout in Health.")
-                    .font(.footnote)
-                    .foregroundStyle(appColors.secondaryText)
-            } else {
-                Button("Connect Apple Health") {
-                    Task {
-                        if !(await healthAccess.enable()) { showingHealthAccessHelp = true }
-                    }
-                }
-                .disabled(!healthAccess.isAvailable)
-                Text("Completed workouts can use Apple's activity and energy data. ModiFiT works without Health access.")
-                    .font(.footnote)
-                    .foregroundStyle(appColors.secondaryText)
-            }
-        }
-        .listRowBackground(appColors.card)
-    }
-
-    private func saveActivityCategory(_ category: WorkoutActivityCategory?) {
-        activityCategory = category
-        var updated = routine
-        updated.activityCategory = category
-        workoutLibrary.updateRoutine(updated)
-    }
-
-    private func beginWorkout(recordInHealth: Bool) {
-        let exercises = viewModel.selectedExercises
-        guard !exercises.isEmpty else { return }
-        activeRoutine = Routine(id: routine.id, name: routine.name, symbol: routine.symbol,
-                                exercises: exercises, createdAt: routine.createdAt,
-                                activityCategory: recordInHealth ? activityCategory : nil)
     }
 }
 
@@ -308,9 +231,7 @@ private struct StartButton: View {
                                   repetitions: 10, durationSeconds: nil, restSeconds: 60,
                                   symbol: "dumbbell.fill")
                 ]
-            ),
-            historyStore: WorkoutHistoryStore(),
-            workoutLibrary: WorkoutLibraryStore()
+            )
         )
     }
     .modifier(AppTheme(palette: .terracotta))

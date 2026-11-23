@@ -1,118 +1,38 @@
 import SwiftUI
 
-// Esta vista presenta el entrenamiento activo y conecta sus controles con el ViewModel.
 struct FocusWorkoutView: View {
     @Environment(\.appColors) private var appColors
 
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel: FocusWorkoutViewModel
-    private let historyStore: WorkoutHistoryStore
-    private let onWorkoutCompleted: () -> Void
-
-    init(routine: Routine, historyStore: WorkoutHistoryStore, onWorkoutCompleted: @escaping () -> Void = {}) {
-        self.historyStore = historyStore
-        self.onWorkoutCompleted = onWorkoutCompleted
-        _viewModel = StateObject(wrappedValue: FocusWorkoutViewModel(routine: routine, historyStore: historyStore))
-    }
+    @ObservedObject var viewModel: FocusWorkoutViewModel
+    let historyStore: WorkoutHistoryStore
+    let liveLink: LiveWorkoutLink
+    let onFinish: () -> Void
 
     var body: some View {
         Group {
             if viewModel.state == .completed {
-                WorkoutCompletionView(viewModel: viewModel, historyStore: historyStore, onFinish: dismiss.callAsFunction)
+                WorkoutCompletionView(viewModel: viewModel, historyStore: historyStore, onFinish: onFinish)
+                    .background(appColors.background.ignoresSafeArea())
+                    .tint(appColors.primary)
+                    .navigationTitle(viewModel.routine.name)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .navigationBarBackButtonHidden(true)
+                    .toolbar(.visible, for: .navigationBar, .tabBar)
             } else {
-                activeWorkoutScreen
+                FocusWorkoutSetView(
+                    routine: viewModel.routine,
+                    workout: viewModel.liveWorkout,
+                    showsWatchConflict: liveLink.hasConflict,
+                    showsHealthFailure: viewModel.healthSaveStatus == .failed,
+                    timing: { _ in (viewModel.remainingWorkoutText, viewModel.workoutDelayText) },
+                    onAction: viewModel.applyLiveWorkoutAction
+                )
             }
-        }
-        .background(appColors.background.ignoresSafeArea())
-        .tint(appColors.primary)
-        .navigationTitle(viewModel.routine.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.visible, for: .navigationBar, .tabBar)
-        .toolbar {
-            if viewModel.state != .completed {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { viewModel.showingEndConfirmation = true } label: {
-                        Image(systemName: "xmark")
-                            .foregroundStyle(appColors.primary)
-                    }
-                    .accessibilityLabel("End workout")
-                    .confirmationDialog("End this workout?", isPresented: $viewModel.showingEndConfirmation, titleVisibility: .visible) {
-                        Button("Keep Workout Running", role: .cancel) { }
-                        Button("End Workout", role: .destructive) { viewModel.endWorkout() }
-                    } message: {
-                        Text("This workout won't be saved to your history or Apple Health.")
-                    }
-                }
-            }
-        }
-        .task { await viewModel.startWorkout() }
-        .onChange(of: viewModel.state) { _, state in
-            if state == .completed && !viewModel.endedEarly {
-                onWorkoutCompleted()
-            }
-        }
-        .sheet(item: $viewModel.presentedSheet) { route in
-            NavigationStack {
-                switch route {
-                case .exerciseList:
-                    WorkoutExerciseListView(exercises: viewModel.exercises,
-                                            completedExercises: viewModel.completedExercises,
-                                            currentIndex: viewModel.exerciseIndex)
-                }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
         .sensoryFeedback(.success, trigger: viewModel.completedSets)
     }
-
-    private var activeWorkoutScreen: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 15) {
-                WorkoutSummaryCard(viewModel: viewModel)
-                WorkoutTimerView(viewModel: viewModel)
-
-                WorkoutStatsView(viewModel: viewModel)
-                if viewModel.healthSaveStatus == .failed {
-                    Label("Apple Health is unavailable for this workout. Your session continues locally.", systemImage: "exclamationmark.circle")
-                        .font(.footnote)
-                        .foregroundStyle(appColors.secondaryText)
-                }
-            }
-            .frame(maxWidth: 600).padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 18)
-            .frame(maxWidth: .infinity)
-        }
-        .background(appColors.background.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            actionControls
-                .frame(maxWidth: 600)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity)
-                .background(appColors.background)
-        }
-    }
-
-    // Este grupo muestra controles relevantes según la fase del ejercicio.
-    @ViewBuilder
-    private var actionControls: some View {
-        if viewModel.state == .ready {
-            SwiftUI.ProgressView("Preparing workout")
-                .frame(maxWidth: .infinity, minHeight: 50)
-        } else if viewModel.state == .resting {
-            HStack(spacing: 11) {
-                WorkoutPrimaryAction(title: viewModel.restLeadsToNextExercise ? "Next Exercise" : "Next Set", symbol: "forward.end.fill", action: viewModel.skipRest)
-                WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
-            }
-        } else {
-            HStack(spacing: 12) {
-                WorkoutPrimaryAction(title: "Finish Set", symbol: "checkmark", action: viewModel.finishCurrentSet)
-                WorkoutActionButton(symbol: "list.bullet", label: "Exercise List", action: viewModel.showExerciseList)
-            }
-        }
-    }
 }
+
 import SwiftUI
 
 // Esta vista celebra la sesión y registra cómo se sintió la persona al terminar.
@@ -304,16 +224,17 @@ struct WorkoutExerciseListView: View {
 struct WorkoutStatsView: View {
     @Environment(\.appColors) private var appColors
 
-    @ObservedObject var viewModel: FocusWorkoutViewModel
+    let progressLabel: String
+    let timing: (Date) -> (remaining: String, delay: String?)
 
     var body: some View {
         HStack(spacing: 0) {
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                stat(symbol: "clock", title: "Time Remaining", value: viewModel.remainingWorkoutText,
-                     detail: viewModel.workoutDelayText)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let estimate = timing(context.date)
+                stat(symbol: "clock", title: "Time Remaining", value: estimate.remaining, detail: estimate.delay)
             }
             divider
-            stat(symbol: "chart.bar.fill", title: "Progress", value: viewModel.progressLabel)
+            stat(symbol: "chart.bar.fill", title: "Progress", value: progressLabel)
         }
         .padding(.vertical, 13).appCard()
     }
@@ -344,157 +265,91 @@ import SwiftUI
 struct WorkoutSummaryCard: View {
     @Environment(\.appColors) private var appColors
 
-    @ObservedObject var viewModel: FocusWorkoutViewModel
+    let exercise: FocusExercise
+    let currentSet: Int
+
+    private var setLabel: String { "Set \(currentSet) of \(exercise.sets)" }
 
     private var exerciseTarget: String {
-        if let repetitions = viewModel.currentExercise.repetitions { return "\(repetitions) reps" }
-        if let duration = viewModel.currentExercise.durationSeconds { return "\(duration) sec" }
+        if let repetitions = exercise.repetitions { return "\(repetitions) reps" }
+        if let duration = exercise.durationSeconds { return "\(duration) sec" }
         return "Exercise"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(spacing: 13) {
-                Image(systemName: viewModel.currentExercise.symbol)
+                Image(systemName: exercise.symbol)
                     .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(appColors.primary)
                     .frame(width: 54, height: 54)
                     .background(appColors.accent.opacity(0.55), in: RoundedRectangle(cornerRadius: 18))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.currentExercise.name)
+                    Text(exercise.name)
                         .font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(appColors.text)
-                    Text("\(exerciseTarget) · \(viewModel.setLabel)")
+                    Text("\(exerciseTarget) · \(setLabel)")
                         .font(.system(size: 14, design: .rounded)).foregroundStyle(appColors.secondaryText)
                 }
                 Spacer(minLength: 2)
             }
             HStack(spacing: 5) {
-                ForEach(0..<max(viewModel.currentExercise.sets, 0), id: \.self) { index in
+                ForEach(0..<max(exercise.sets, 0), id: \.self) { index in
                     Capsule()
-                        .fill(index < viewModel.currentSet ? appColors.primary : appColors.accent.opacity(0.65))
+                        .fill(index < currentSet ? appColors.primary : appColors.accent.opacity(0.65))
                         .frame(height: 7)
                 }
             }
             .accessibilityElement()
-            .accessibilityLabel(viewModel.setLabel)
+            .accessibilityLabel(setLabel)
         }
         .padding(15).appCard()
     }
 }
 import SwiftUI
 
-// Shows a randomly selected exercise animation and the current timer controls.
 struct WorkoutTimerView: View {
     @Environment(\.appColors) private var appColors
-
-    @ObservedObject var viewModel: FocusWorkoutViewModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var animation = WorkoutAnimation.all.randomElement()!
-    @State private var animationStartedAt = Date.now
-
-    private static let animationFrameDuration = 0.8
-    private static let timerFontSize: CGFloat = 34
-
-    private var timerText: String? {
-        if viewModel.isShowingRest {
-            if viewModel.restTimeExpired {
-                return String(format: "+%02d:%02d", viewModel.restOvertimeSeconds / 60, viewModel.restOvertimeSeconds % 60)
-            }
-            return String(format: "%02d:%02d", viewModel.remainingSeconds / 60, viewModel.remainingSeconds % 60)
-        }
-        if viewModel.currentExercise.durationSeconds != nil { return viewModel.currentTimeText }
-        return nil
-    }
+    @ScaledMetric(relativeTo: .largeTitle) private var timerFontSize: CGFloat = 48
+    let workout: LiveWorkoutSnapshot?
 
     var body: some View {
         VStack(spacing: 10) {
-            TimelineView(.periodic(from: .now, by: Self.animationFrameDuration)) { context in
-                let displayedAnimation = viewModel.isShowingRest
-                    ? (viewModel.restTimeExpired ? WorkoutAnimation.restOvertime : WorkoutAnimation.rest)
-                    : animation
-                let frameIndex = frameIndex(for: displayedAnimation, at: context.date)
+            WorkoutAnimatedMascot(workout: workout)
+                .aspectRatio(1, contentMode: .fit)
+                .frame(maxWidth: 260)
 
-                Image(displayedAnimation.frameName(frameIndex))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 320)
-                    .aspectRatio(1, contentMode: .fit)
-                    .accessibilityLabel("Workout animation")
-            }
-
-            if !viewModel.isShowingRest {
-                Group {
-                    if viewModel.state == .paused || viewModel.elapsedTimerStart == nil {
-                        Text(viewModel.elapsedWorkoutText)
-                    } else if let start = viewModel.elapsedTimerStart {
-                        Text(start, style: .timer)
-                    }
+            if let workout {
+                if workout.resting || workout.pausedAt != nil || workout.deadline != nil {
+                    Text(phaseTitle(for: workout))
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(appColors.secondaryText)
                 }
-                .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
-                .monospacedDigit().foregroundStyle(appColors.text)
-                .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
-            }
-
-            if let timerText {
-                Text(viewModel.stateTitle)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(appColors.secondaryText)
-                Text(timerText)
-                    .font(.system(size: Self.timerFontSize, weight: .medium, design: .rounded))
-                    .monospacedDigit().foregroundStyle(viewModel.isShowingRest && viewModel.restTimeExpired ? Color.red : appColors.text)
-                    .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
+                TimelineView(.periodic(from: .now, by: 0.25)) { context in
+                    let timer = workout.timerText(at: context.date)
+                    Text(timer)
+                        .font(.system(size: timerFontSize, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(restOvertimeStart(at: context.date) == nil ? appColors.text : .red)
+                        .lineLimit(1).minimumScaleFactor(0.5).frame(minHeight: 41)
+                        .accessibilityLabel(workout.resting ? "Rest timer" : "Set timer")
+                        .accessibilityValue(timer)
+                }
             }
         }
         .frame(maxWidth: .infinity)
-        .onChange(of: viewModel.exerciseIndex) { _, _ in
-            animation = WorkoutAnimation.all.randomElement()!
-            animationStartedAt = .now
-        }
-        .onChange(of: viewModel.state) { _, _ in
-            animationStartedAt = .now
-        }
-        .onChange(of: viewModel.restTimeExpired) { _, _ in
-            animationStartedAt = .now
-        }
-        .onAppear {
-            animationStartedAt = .now
-        }
     }
 
-    private func frameIndex(for animation: WorkoutAnimation, at date: Date) -> Int {
-        guard !reduceMotion, viewModel.state != .paused else { return 0 }
-
-        let elapsed = max(0, date.timeIntervalSince(animationStartedAt))
-        if animation.repeats {
-            return Int(elapsed / Self.animationFrameDuration) % 2
-        }
-        return elapsed >= Self.animationFrameDuration ? 1 : 0
+    private func phaseTitle(for workout: LiveWorkoutSnapshot) -> LocalizedStringKey {
+        if workout.pausedAt != nil { return workout.resting ? "Rest · Paused" : "Paused" }
+        return workout.resting ? "Rest" : "Exercise"
     }
-}
 
-private struct WorkoutAnimation {
-    let first: String
-    let second: String
-    var repeats = true
-
-    static let rest = WorkoutAnimation(first: "WorkoutAnimationRest1", second: "WorkoutAnimationRest2")
-    static let restOvertime = WorkoutAnimation(
-        first: "WorkoutAnimationMelt1",
-        second: "WorkoutAnimationMelt2",
-        repeats: false
-    )
-
-    static let all: [WorkoutAnimation] = [
-        .init(first: "WorkoutAnimationCurl1", second: "WorkoutAnimationCurl2"),
-        .init(first: "WorkoutAnimationCycle1", second: "WorkoutAnimationCycle2"),
-        .init(first: "WorkoutAnimationLegPress1", second: "WorkoutAnimationLegPress2"),
-        .init(first: "WorkoutAnimationPulley1", second: "WorkoutAnimationPulley2"),
-        .init(first: "WorkoutAnimationTreadmill1", second: "WorkoutAnimationTreadmill2")
-    ]
-
-    func frameName(_ index: Int) -> String {
-        index == 0 ? first : second
+    private func restOvertimeStart(at date: Date) -> Date? {
+        guard let workout, workout.resting, let deadline = workout.deadline,
+              deadline <= (workout.pausedAt ?? date) else { return nil }
+        return deadline
     }
+
 }
 import SwiftUI
 

@@ -11,22 +11,19 @@ final class FocusWorkoutViewModel: ObservableObject {
     var currentSet: Int { position.set }
     @Published private(set) var remainingSeconds = 0
     @Published private(set) var restTimeExpired = false
-    @Published private(set) var restOvertimeSeconds = 0
-    @Published private(set) var restLeadsToNextExercise = false
     @Published private(set) var countdownDuration = 0
     var completedExercises: Int { position.completedExercises }
     var completedSets: Int { position.completedSets }
     @Published private(set) var sessionDurationSeconds = 0
-    @Published var showingEndConfirmation = false
     @Published var showingExitConfirmation = false
-    @Published var presentedSheet: FocusWorkoutSheet?
     @Published private(set) var endedEarly = false
     @Published private(set) var healthSaveStatus: HealthWorkoutSaveStatus = .off
     @Published private(set) var activeEnergyKilocalories: Double?
 
     let routine: Routine
     let exercises: [FocusExercise]
-    let workoutID = UUID()
+    private(set) var workoutID = UUID()
+    var onLiveWorkoutChange: ((LiveWorkoutSnapshot?) -> Void)?
     private let historyStore: WorkoutHistoryStore
     private let healthSession = AppleHealthWorkoutSession()
 
@@ -41,6 +38,7 @@ final class FocusWorkoutViewModel: ObservableObject {
     private var sessionEndedAt: Date?
     private var totalPausedSeconds: TimeInterval = 0
     private var pauseStartedAt: Date?
+    private var starting = false
 
     init(routine: Routine, historyStore: WorkoutHistoryStore) {
         self.routine = routine
@@ -49,26 +47,34 @@ final class FocusWorkoutViewModel: ObservableObject {
     }
 
     var currentExercise: FocusExercise { exercises[min(exerciseIndex, exercises.count - 1)] }
-    var currentExerciseNumber: Int { min(exerciseIndex + 1, exercises.count) }
     var pausedStateIsTimedExercise: Bool { pausedFromState == .exercising && currentExercise.durationSeconds != nil }
     var isShowingRest: Bool { state == .resting || (state == .paused && pausedFromState == .resting) }
-    var progressLabel: String { "\(currentExerciseNumber) of \(exercises.count)" }
     var segmentProgress: Double { Double(completedExercises) / Double(max(exercises.count, 1)) }
-    var currentTimeText: String {
-        if currentExercise.durationSeconds != nil && (state == .exercising || state == .paused) {
-            return Self.timeString(remainingSeconds)
-        }
-        return currentExercise.repetitions.map { "\($0) reps" } ?? "Exercise"
+    var liveWorkout: LiveWorkoutSnapshot? {
+        guard state != .ready, state != .completed, let currentSetStartedAt else { return nil }
+        return LiveWorkoutSnapshot(
+            id: workoutID, routine: routine, position: position, resting: isShowingRest,
+            setStartedAt: currentSetStartedAt, deadline: countdownDeadline ?? restOvertimeStartedAt,
+            pausedAt: pauseStartedAt
+        )
     }
-    var setLabel: String { "Set \(currentSet) of \(currentExercise.sets)" }
-    var elapsedTimerStart: Date? { sessionStartedAt?.addingTimeInterval(totalPausedSeconds) }
+
+    func applyLiveWorkoutAction(_ action: LiveWorkoutAction) {
+        switch action {
+        case .pause: pauseWorkout()
+        case .resume: resumeWorkout()
+        case .finishSet: finishCurrentSet()
+        case .skipRest: skipRest()
+        case .discard: endWorkout()
+        }
+    }
+
+    private func publishLiveWorkout() { onLiveWorkoutChange?(liveWorkout) }
+
     private var elapsedWorkoutSeconds: Int {
         guard let sessionStartedAt else { return 0 }
         let end = sessionEndedAt ?? pauseStartedAt ?? Date()
         return max(0, Int(end.timeIntervalSince(sessionStartedAt) - totalPausedSeconds))
-    }
-    var elapsedWorkoutText: String {
-        Self.timeString(elapsedWorkoutSeconds)
     }
     private var projectedScheduleDelaySeconds: Int {
         guard estimatedWorkoutDurationSeconds > 0 else { return 0 }
@@ -108,21 +114,27 @@ final class FocusWorkoutViewModel: ObservableObject {
 
     // Esta función inicia la sesión y activa de inmediato el primer ejercicio.
     func startWorkout() async {
-        guard state == .ready else { return }
-        if let category = routine.activityCategory,
-           AppleHealthAccess.shared.savesWorkouts,
-           AppleHealthAccess.shared.canWriteWorkouts {
-            healthSaveStatus = .starting
-            do {
-                sessionStartedAt = try await healthSession.start(category: category, recordID: workoutID)
-                healthSaveStatus = .recording
-            } catch {
-                healthSaveStatus = .failed
-                sessionStartedAt = Date()
-            }
-        } else {
-            sessionStartedAt = Date()
+        guard state == .ready, !starting, !exercises.isEmpty else { return }
+        starting = true
+        defer {
+            starting = false
+            publishLiveWorkout()
         }
+        if let category = routine.activityCategory {
+            let access = AppleHealthAccess.shared
+            access.refresh()
+            healthSaveStatus = .failed
+            if access.canWriteWorkouts {
+                healthSaveStatus = .starting
+                do {
+                    sessionStartedAt = try await healthSession.start(category: category, recordID: workoutID)
+                    healthSaveStatus = .recording
+                } catch {
+                    healthSaveStatus = .failed
+                }
+            }
+        }
+        if sessionStartedAt == nil { sessionStartedAt = Date() }
         estimatedWorkoutDurationSeconds = WorkoutTiming.totalSeconds(for: exercises)
         state = .exercising
         startTimedExerciseIfNeeded()
@@ -131,17 +143,15 @@ final class FocusWorkoutViewModel: ObservableObject {
     // Esta función pausa el estado actual y conserva el tiempo exacto restante.
     func pauseWorkout() {
         guard state == .exercising || state == .resting else { return }
+        defer { publishLiveWorkout() }
         pausedFromState = state
+        let now = Date.now
         if let deadline = countdownDeadline {
-            remainingSeconds = max(0, Int(ceil(deadline.timeIntervalSinceNow)))
-            countdownDeadline = nil
-        }
-        if restTimeExpired, let started = restOvertimeStartedAt {
-            restOvertimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
+            remainingSeconds = max(0, Int(ceil(deadline.timeIntervalSince(now))))
         }
         timerTask?.cancel()
         timerTask = nil
-        pauseStartedAt = Date()
+        pauseStartedAt = now
         if healthSaveStatus == .recording { healthSession.pause() }
         state = .paused
     }
@@ -149,30 +159,34 @@ final class FocusWorkoutViewModel: ObservableObject {
     // Esta función reanuda el conteo desde la fecha límite restante o el set pausado.
     func resumeWorkout() {
         guard state == .paused else { return }
+        defer { publishLiveWorkout() }
         if let pauseStartedAt {
-            let pauseDuration = Date().timeIntervalSince(pauseStartedAt)
+            let pauseDuration = max(0, Date().timeIntervalSince(pauseStartedAt))
             totalPausedSeconds += pauseDuration
+            countdownDeadline = countdownDeadline?.addingTimeInterval(pauseDuration)
             if restTimeExpired { restOvertimeStartedAt = restOvertimeStartedAt?.addingTimeInterval(pauseDuration) }
             if pausedFromState == .exercising { currentSetStartedAt = currentSetStartedAt?.addingTimeInterval(pauseDuration) }
         }
         pauseStartedAt = nil
         if healthSaveStatus == .recording { healthSession.resume() }
         state = pausedFromState
-        if pausedFromState == .resting && restTimeExpired {
-            startRestOvertime()
-        } else if (pausedFromState == .resting && !restTimeExpired) || (pausedFromState == .exercising && currentExercise.durationSeconds != nil) {
-            startCountdown(seconds: remainingSeconds, phase: pausedFromState)
+        if countdownDeadline != nil {
+            scheduleCountdown()
         }
     }
 
     // Esta función marca el set actual sin asumir que las repeticiones se midieron automáticamente.
     func finishCurrentSet() {
+        finishCurrentSet(at: .now)
+    }
+
+    private func finishCurrentSet(at date: Date) {
         guard state == .exercising else { return }
+        defer { publishLiveWorkout() }
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
         let finishedExercise = currentExercise
-        restLeadsToNextExercise = currentSet >= finishedExercise.sets
         if position.finishSet(in: exercises) {
             completeWorkout(endedEarly: false)
             return
@@ -181,9 +195,8 @@ final class FocusWorkoutViewModel: ObservableObject {
         activeRestDuration = max(0, finishedExercise.restSeconds)
         restTimeExpired = false
         restOvertimeStartedAt = nil
-        restOvertimeSeconds = 0
         if activeRestDuration > 0 {
-            startCountdown(seconds: activeRestDuration, phase: .resting)
+            startCountdown(seconds: activeRestDuration, phase: .resting, startedAt: date)
         } else {
             state = .exercising
             startTimedExerciseIfNeeded()
@@ -193,28 +206,27 @@ final class FocusWorkoutViewModel: ObservableObject {
     // Esta función salta solo el descanso activo y comienza el set siguiente.
     func skipRest() {
         guard state == .resting else { return }
+        defer { publishLiveWorkout() }
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
         remainingSeconds = 0
         restTimeExpired = false
         restOvertimeStartedAt = nil
-        restOvertimeSeconds = 0
         state = .exercising
         startTimedExerciseIfNeeded()
     }
 
     // Esta función reinicia la sesión desde el primer ejercicio y su primer set.
     func restartWorkout() {
+        guard !starting, state != .completed else { return }
         healthSession.discard()
         timerTask?.cancel()
         timerTask = nil
         countdownDeadline = nil
         position = WorkoutPosition()
         restTimeExpired = false
-        restLeadsToNextExercise = false
         restOvertimeStartedAt = nil
-        restOvertimeSeconds = 0
         totalPausedSeconds = 0
         pauseStartedAt = nil
         sessionStartedAt = nil
@@ -223,22 +235,21 @@ final class FocusWorkoutViewModel: ObservableObject {
         endedEarly = false
         healthSaveStatus = .off
         activeEnergyKilocalories = nil
+        workoutID = UUID()
         state = .ready
+        publishLiveWorkout()
         Task { await startWorkout() }
     }
 
     // Esta función termina anticipadamente y detiene cualquier temporizador pendiente.
     func endWorkout() {
+        guard state != .ready, state != .completed else { return }
         completeWorkout(endedEarly: true)
-    }
-
-    // Esta función abre la lista completa sin cambiar el ejercicio activo.
-    func showExerciseList() {
-        presentedSheet = .exerciseList
+        publishLiveWorkout()
     }
 
     // Esta función cuenta hacia atrás usando una fecha límite para evitar deriva del temporizador.
-    private func startCountdown(seconds: Int, phase: WorkoutSessionState) {
+    private func startCountdown(seconds: Int, phase: WorkoutSessionState, startedAt: Date = .now) {
         timerTask?.cancel()
         countdownDuration = max(0, seconds)
         remainingSeconds = max(0, seconds)
@@ -248,7 +259,11 @@ final class FocusWorkoutViewModel: ObservableObject {
             return
         }
 
-        countdownDeadline = Date().addingTimeInterval(TimeInterval(seconds))
+        countdownDeadline = startedAt.addingTimeInterval(TimeInterval(seconds))
+        scheduleCountdown()
+    }
+
+    private func scheduleCountdown() {
         timerTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self, let deadline = self.countdownDeadline else { return }
@@ -257,9 +272,7 @@ final class FocusWorkoutViewModel: ObservableObject {
                     self.remainingSeconds = secondsLeft
                 }
                 if secondsLeft == 0 {
-                    self.timerTask = nil
-                    self.countdownDeadline = nil
-                    self.countdownFinished(phase: phase, expiredAt: deadline)
+                    self.refreshCountdown()
                     return
                 }
                 try? await Task.sleep(for: .milliseconds(250))
@@ -267,28 +280,23 @@ final class FocusWorkoutViewModel: ObservableObject {
         }
     }
 
+    func refreshCountdown() {
+        guard state == .exercising || state == .resting,
+              let deadline = countdownDeadline, deadline <= .now else { return }
+        timerTask?.cancel()
+        timerTask = nil
+        countdownDeadline = nil
+        remainingSeconds = 0
+        countdownFinished(phase: state, expiredAt: deadline)
+    }
+
     private func countdownFinished(phase: WorkoutSessionState, expiredAt: Date = Date()) {
         guard state != .paused && state != .completed else { return }
         if phase == .resting {
             restTimeExpired = true
             restOvertimeStartedAt = expiredAt
-            startRestOvertime()
         } else if phase == .exercising {
-            finishCurrentSet()
-        }
-    }
-
-    private func startRestOvertime() {
-        timerTask?.cancel()
-        timerTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self, self.state == .resting, let started = self.restOvertimeStartedAt else { return }
-                let overtimeSeconds = max(0, Int(Date().timeIntervalSince(started)))
-                if self.restOvertimeSeconds != overtimeSeconds {
-                    self.restOvertimeSeconds = overtimeSeconds
-                }
-                try? await Task.sleep(for: .milliseconds(250))
-            }
+            finishCurrentSet(at: expiredAt)
         }
     }
 

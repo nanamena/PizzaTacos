@@ -7,10 +7,8 @@ final class AppleHealthAccess: ObservableObject {
 
     @Published private(set) var isAvailable = HKHealthStore.isHealthDataAvailable()
     @Published private(set) var canWriteWorkouts = false
-    @Published private(set) var savesWorkouts = UserDefaults.standard.bool(forKey: "modifit.savesWorkoutsToHealth")
 
     let store = HKHealthStore()
-    private let preferenceKey = "modifit.savesWorkoutsToHealth"
     private let workoutType = HKObjectType.workoutType()
     private var recoveryTask: Task<Void, Never>?
 
@@ -21,14 +19,10 @@ final class AppleHealthAccess: ObservableObject {
     func refresh() {
         isAvailable = HKHealthStore.isHealthDataAvailable()
         canWriteWorkouts = isAvailable && store.authorizationStatus(for: workoutType) == .sharingAuthorized
-        if !canWriteWorkouts && savesWorkouts {
-            savesWorkouts = false
-            UserDefaults.standard.set(false, forKey: preferenceKey)
-        }
     }
 
     @discardableResult
-    func enable() async -> Bool {
+    func requestAccess() async -> Bool {
         refresh()
         guard isAvailable else { return false }
         do {
@@ -41,15 +35,7 @@ final class AppleHealthAccess: ObservableObject {
             return false
         }
         refresh()
-        guard canWriteWorkouts else { return false }
-        savesWorkouts = true
-        UserDefaults.standard.set(true, forKey: preferenceKey)
-        return true
-    }
-
-    func disable() {
-        savesWorkouts = false
-        UserDefaults.standard.set(false, forKey: preferenceKey)
+        return canWriteWorkouts
     }
 
     // The app has no restored exercise state after a crash, so an orphaned live

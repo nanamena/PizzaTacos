@@ -5,6 +5,10 @@ enum WorkoutAppearanceSync {
     static let paletteKey = "workoutPalette"
 }
 
+enum WorkoutHealthPreferenceSync {
+    static let contextKey = "workoutHealthPreference"
+}
+
 struct RoutineCatalog: Codable {
     var version = 1
     let installationID: UUID
@@ -25,21 +29,35 @@ struct RoutineCatalog: Codable {
 struct WatchExerciseSelectionRequest: Codable, Identifiable, Hashable {
     let id: UUID
     let routineID: String
+    let supportsHealthMode: Bool?
 
     init(id: UUID = UUID(), routineID: String) {
         self.id = id
         self.routineID = routineID
+        supportsHealthMode = true
+    }
+}
+
+enum WatchWorkoutHealthMode: Codable, Hashable {
+    case withoutAppleHealth
+    case appleHealth(WorkoutActivityCategory)
+
+    var activityCategory: WorkoutActivityCategory? {
+        if case .appleHealth(let category) = self { return category }
+        return nil
     }
 }
 
 struct WatchExerciseSelectionResponse: Codable, Hashable {
     let requestID: UUID
     let selectedExerciseIDs: [String]
+    let healthMode: WatchWorkoutHealthMode?
 }
 
 struct WatchExerciseSelectionState: Codable, Hashable {
     let request: WatchExerciseSelectionRequest
     var selectedExerciseIDs: [String]?
+    var healthMode: WatchWorkoutHealthMode?
 }
 
 enum WorkoutSyncMessage: Codable {
@@ -61,15 +79,18 @@ enum WorkoutSyncMessage: Codable {
         return envelope.message
     }
 
-    func enqueue(on session: WCSession) {
+    @discardableResult
+    func enqueue(on session: WCSession) -> Bool {
         guard session.activationState == .activated,
-              let data = try? JSONEncoder().encode(Envelope(version: 1, message: self)),
-              !session.outstandingUserInfoTransfers.contains(where: { transfer in
-                  guard let payload = transfer.userInfo["workout"] as? Data else { return false }
-                  return Self.decode(payload)?.deduplicationKey == deduplicationKey
-              })
-        else { return }
+              let data = try? JSONEncoder().encode(Envelope(version: 1, message: self))
+        else { return false }
+        if session.outstandingUserInfoTransfers.contains(where: { transfer in
+            guard let payload = transfer.userInfo["workout"] as? Data else { return false }
+            return Self.decode(payload)?.deduplicationKey == deduplicationKey
+        }) { return true }
+
         session.transferUserInfo(["workout": data])
+        return true
     }
 
     var identifier: UUID {

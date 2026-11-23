@@ -2,34 +2,66 @@ import SwiftUI
 
 struct WatchWorkoutView: View {
     let model: WatchWorkoutModel
-    @Environment(\.appColors) private var colors
-    @State private var confirmsDiscard = false
+    let live: LiveWorkoutLink
+    @State private var hiddenPhoneWorkout: UUID?
 
     var body: some View {
+        Group {
+            if model.active == nil, !model.showingResult, let workout = live.remoteWorkout,
+               hiddenPhoneWorkout != workout.id || live.isConnected {
+                mirroredWorkout(workout)
+            } else {
+                localWorkoutNavigation
+            }
+        }
+        .onChange(of: live.isConnected) { _, connected in
+            if connected { hiddenPhoneWorkout = nil }
+        }
+    }
+
+    private var localWorkoutNavigation: some View {
         NavigationStack {
             Group {
                 if let active = model.active {
-                    WatchActiveWorkoutView(active: active, model: model) {
-                        confirmsDiscard = true
-                    }
+                    WatchActiveWorkoutView(workout: active.liveWorkout, actionsEnabled: !model.busy,
+                                           hasConflict: live.hasConflict, healthFailed: active.health == .failed,
+                                           onAction: model.applyLiveWorkoutAction)
+                        .id(active.id)
+                        .navigationTitle("ModiFiT")
                 } else if model.showingResult, let result = model.result {
-                    summary(result)
+                    WatchWorkoutSummaryView(result: result, activeEnergy: model.resultEnergy, onDone: model.dismissResult)
                 } else {
-                    catalog
+                    catalog.navigationTitle("Routines")
                 }
             }
             .background(Color.black.ignoresSafeArea())
-            .navigationTitle(model.active == nil && !model.showingResult ? "Routines" : "ModiFiT")
-        }
-        .confirmationDialog("End this workout?", isPresented: $confirmsDiscard) {
-            Button("Discard Workout", role: .destructive) { model.discard() }
-        } message: {
-            Text("Your progress in this workout will be discarded.")
         }
         .alert("ModiFiT", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK", role: .cancel) { model.error = nil }
         } message: {
             Text(model.error ?? "")
+        }
+    }
+
+    private func mirroredWorkout(_ workout: LiveWorkoutSnapshot) -> some View {
+        let deadline = workout.pausedAt == nil && !workout.resting ? workout.deadline : nil
+        return WatchActiveWorkoutView(
+            workout: workout,
+            actionsEnabled: live.isConnected && !live.commandPending,
+            isConnected: live.isConnected,
+            commandRejected: live.commandRejected,
+            onBrowseRoutines: { hiddenPhoneWorkout = workout.id },
+            onAction: { live.sendAction($0, for: workout.id) }
+        )
+        .id(workout.id)
+        .task(id: deadline) {
+            guard let deadline else { return }
+            do {
+                try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
+                live.refreshRemoteWorkout()
+            } catch {
+                // A newer set or a pause superseded this deadline.
+            }
         }
     }
 
@@ -55,25 +87,6 @@ struct WatchWorkoutView: View {
                 }
                 .listRowBackground(catalogRowBackground)
             }
-
-            if let result = model.result {
-                NavigationLink("Last Workout") { summary(result, showDone: false) }
-                    .listRowBackground(catalogRowBackground)
-            }
-
-            Section("Apple Health") {
-                if model.healthAvailable {
-                    Button(model.savesToHealth ? "Stop Saving Workouts" : "Connect Apple Health") {
-                        Task { await model.setHealthEnabled(!model.savesToHealth) }
-                    }
-                    .disabled(model.authorizingHealth)
-                    .listRowBackground(catalogRowBackground)
-                } else {
-                    Text("Apple Health unavailable")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .listStyle(.elliptical)
     }
@@ -81,37 +94,5 @@ struct WatchWorkoutView: View {
     private var catalogRowBackground: some View {
         RoundedRectangle(cornerRadius: 18, style: .continuous)
             .fill(.fill.tertiary)
-    }
-
-    private func summary(_ result: WatchWorkoutResult, showDone: Bool = true) -> some View {
-        List {
-            Section("Workout Complete") {
-                Text(result.record.routineName).font(.headline)
-                Text(Duration.seconds(result.record.durationSeconds), format: .time(pattern: .minuteSecond)).monospacedDigit()
-            }
-            .listRowBackground(colors.surface)
-            Section("Apple Health") {
-                switch result.health {
-                case .off: Text("Saving off for this workout")
-                case .saving, .recording: Text("Saving…")
-                case .saved: Label("Saved", systemImage: "checkmark.circle")
-                case .failed: Text("Couldn’t save to Apple Health")
-                }
-                if result.record.id == model.result?.record.id, let energy = model.resultEnergy {
-                    Text("\(energy.formatted(.number.precision(.fractionLength(0)))) kcal active energy")
-                }
-            }
-            .listRowBackground(colors.surface)
-            Section("iPhone") {
-                Text(result.synced ? "Synced" : "Waiting to sync")
-            }
-            .listRowBackground(colors.surface)
-            if showDone {
-                Button("Done", action: model.dismissResult)
-                    .buttonStyle(WatchActionStyle())
-                    .listRowBackground(Color.clear)
-            }
-        }
-        .foregroundStyle(colors.text)
     }
 }

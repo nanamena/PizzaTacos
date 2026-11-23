@@ -150,23 +150,14 @@ struct WorkoutsView: View {
             .toolbar(.hidden, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search routines")
             .navigationDestination(for: Routine.self) { routine in
-                TrainingScreen(routine: routine, historyStore: historyStore, workoutLibrary: workoutLibrary)
+                TrainingScreen(routine: routine, onStartWorkout: watchSync.startPhoneWorkout)
             }
             .navigationDestination(item: $watchSelectionRoute) { route in
                 TrainingScreen(
                     routine: route.routine,
-                    historyStore: historyStore,
-                    workoutLibrary: workoutLibrary,
-                    watchSelectionRequestID: route.request.id,
-                    onSendSelectionToWatch: { requestID, exerciseIDs in
-                        let didSubmit = watchSync.submitWatchExerciseSelection(requestID: requestID, selectedExerciseIDs: exerciseIDs)
-                        if didSubmit { watchSelectionRoute = nil }
-                        return didSubmit
-                    },
-                    onCancelWatchSelection: { requestID in
-                        watchSync.cancelWatchExerciseSelection(requestID: requestID)
-                        watchSelectionRoute = nil
-                    }
+                    watchSelectionRequest: route.request,
+                    onSendSelectionToWatch: watchSync.submitWatchExerciseSelection,
+                    onCancelWatchSelection: watchSync.cancelWatchExerciseSelection
                 )
             }
             .navigationDestination(item: $viewModel.importedWorkout) { request in
@@ -211,12 +202,19 @@ struct WorkoutsView: View {
             if let routine { workoutEditor = WorkoutEditorRequest(routine: routine) }
         }
         .onChange(of: watchSync.pendingWatchExerciseSelectionRequest?.id, initial: true) { _, _ in
-            guard let request = watchSync.pendingWatchExerciseSelectionRequest else { return }
+            guard let request = watchSync.pendingWatchExerciseSelectionRequest else {
+                watchSelectionRoute = nil
+                return
+            }
             guard let routine = workoutLibrary.standaloneRoutines.first(where: { $0.id == request.routineID }) else {
                 watchSync.cancelWatchExerciseSelection(requestID: request.id)
                 return
             }
             watchSelectionRoute = WatchSelectionRoute(request: request, routine: routine)
+        }
+        .onChange(of: watchSelectionRoute?.id) { previousID, currentID in
+            guard let previousID, currentID == nil else { return }
+            watchSync.cancelWatchExerciseSelection(requestID: previousID)
         }
         .onChange(of: viewModel.importedWorkout?.id) { previous, current in
             guard previous != nil, current == nil else { return }
@@ -331,39 +329,33 @@ private struct RoutinesSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
-            Text("Routines")
-                .font(.system(size: 29, weight: .bold, design: .rounded))
-                .tracking(-0.45)
-                .foregroundStyle(appColors.text)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(RoutineSortCriterion.allCases) { criterion in
-                        sortChip(for: criterion)
-                    }
-                }
-                .padding(.vertical, 2)
-                .fixedSize(horizontal: true, vertical: false)
-            }
-
             HStack {
+                Text("Routines")
+                    .font(.system(.title, design: .rounded, weight: .bold))
+                    .foregroundStyle(appColors.text)
+                    .accessibilityAddTraits(.isHeader)
+
                 Spacer()
-                Button {
-                    withAnimation(.snappy(duration: 0.2)) {
-                        isSortDescending.toggle()
+                Menu {
+                    Picker("Sort By", selection: $sortCriterion) {
+                        ForEach(RoutineSortCriterion.allCases) { criterion in
+                            Text(criterion.title).tag(criterion)
+                        }
+                    }
+                    Picker("Order", selection: $isSortDescending) {
+                        Text("Ascending").tag(false)
+                        Text("Descending").tag(true)
                     }
                 } label: {
-                    Image(systemName: isSortDescending ? "arrow.down" : "arrow.up")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(appColors.primary)
+                    Label("Sort Routines", systemImage: "arrow.up.arrow.down")
+                        .labelStyle(.iconOnly)
+                        .font(.body.weight(.semibold))
                         .frame(width: 44, height: 44)
                         .background(appColors.surface, in: Circle())
-                        .overlay(Circle().stroke(appColors.border, lineWidth: 1))
-                        .contentShape(Circle())
+                        .overlay(Circle().strokeBorder(appColors.border))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isSortDescending ? "Descending order" : "Ascending order")
-                .accessibilityHint("Switch to \(isSortDescending ? "ascending" : "descending") order")
+                .tint(appColors.primary)
+                .accessibilityValue("\(sortCriterion.title), \(isSortDescending ? "Descending" : "Ascending")")
             }
 
             if routines.isEmpty {
@@ -392,27 +384,7 @@ private struct RoutinesSection: View {
         }
     }
 
-    private func sortChip(for criterion: RoutineSortCriterion) -> some View {
-        let isSelected = sortCriterion == criterion
 
-        return Button {
-            withAnimation(.snappy(duration: 0.2)) {
-                sortCriterion = criterion
-            }
-        } label: {
-            Text(criterion.title)
-                .font(.system(size: 14, weight: isSelected ? .semibold : .medium, design: .rounded))
-                .foregroundStyle(isSelected ? appColors.surface : appColors.text)
-                .padding(.horizontal, 15)
-                .frame(height: 40)
-                .background(isSelected ? appColors.primary : appColors.surface, in: Capsule())
-                .overlay(Capsule().stroke(isSelected ? Color.clear : appColors.border, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityHint("Sort routines by \(criterion.title.lowercased())")
-    }
 }
 
 // Esta fila separa el símbolo, la descripción de la rutina y su indicador de navegación.
@@ -461,6 +433,7 @@ private struct RoutineRowView: View {
                     }
                     .contentShape(Rectangle())
             }
+            .tint(nil)
             .accessibilityLabel("Actions for \(routine.name)")
             .accessibilityHint("Edit or delete this routine")
             .zIndex(1)

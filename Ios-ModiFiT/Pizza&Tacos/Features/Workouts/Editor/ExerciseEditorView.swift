@@ -7,6 +7,7 @@ struct ExerciseEditorView: View {
     @State private var exercise: WorkoutExercise
     @State private var baseline: WorkoutExercise
     @State private var discard = false
+    @State private var lastTimedDuration = 30
     let route: ExerciseEditorRoute
     let onCommit: (WorkoutExercise) -> Void
 
@@ -27,10 +28,11 @@ struct ExerciseEditorView: View {
                 }
                 Section("Parameters") {
                     WorkoutSetStepper(value: $exercise.sets, range: 1...30)
+                    Toggle("Timed Exercise", isOn: timedExercise)
                     if exercise.isTimed {
                         WorkoutDurationPicker(
                             title: "Duration",
-                            value: Binding(get: { exercise.duration ?? 30 }, set: { exercise.duration = $0 }),
+                            value: Binding(get: { exercise.duration ?? lastTimedDuration }, set: { exercise.duration = $0 }),
                             range: 1...3600
                         )
                     } else {
@@ -72,6 +74,18 @@ struct ExerciseEditorView: View {
         .tint(appColors.primary)
         .interactiveDismissDisabled(exercise != baseline)
     }
+
+    private var timedExercise: Binding<Bool> {
+        Binding(get: { exercise.isTimed }, set: { isTimed in
+            if isTimed {
+                exercise.duration = exercise.duration ?? lastTimedDuration
+            } else if let duration = exercise.duration {
+                lastTimedDuration = duration
+                exercise.duration = nil
+            }
+        })
+    }
+
     private func cancel() { if exercise != baseline { discard = true } else { dismiss() } }
     private func done() { onCommit(exercise); dismiss() }
     private func addAnother() {
