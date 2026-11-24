@@ -23,9 +23,15 @@ final class WorkoutStartCoordinator {
         }
     }
 
-    func recoverPhoneReservation() {
-        // The phone doesn't restore workouts after termination. HealthKit cleanup runs first.
-        if reservation?.watchSource == nil, reservation != nil { _ = save(nil) }
+    func recoverPhoneReservation(activePhoneWorkoutID: UUID?) {
+        if let reservation, reservation.watchSource == nil {
+            guard reservation.workoutID == activePhoneWorkoutID else {
+                _ = save(nil)
+                return
+            }
+        } else if let activePhoneWorkoutID, reservation == nil {
+            _ = save(Reservation(workoutID: activePhoneWorkoutID))
+        }
     }
 
     func reservePhone(id: UUID) -> Bool {

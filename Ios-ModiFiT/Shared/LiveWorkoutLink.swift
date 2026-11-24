@@ -80,13 +80,20 @@ final class LiveWorkoutLink {
     private var remote: Publication?
     private var retiredSources: Set<UUID> = []
     private var connectionGeneration = UUID()
-    private(set) var isConnected = false
+    private(set) var isConnected = false {
+        didSet {
+            guard oldValue != isConnected else { return }
+            onConnectionChange?(isConnected)
+        }
+    }
     private(set) var commandPending = false
     private(set) var commandRejected = false
     var onAction: ((LiveWorkoutAction) -> Void)?
     var onClockRefresh: (() -> Void)?
+    var onConnectionChange: ((Bool) -> Void)?
 
     var remoteWorkout: LiveWorkoutSnapshot? { remote?.workout }
+    var localPublication: Publication { local }
     var hasConflict: Bool { local.workout != nil && remoteWorkout != nil }
     var onPeerState: ((Publication) -> Void)?
     var onWatchClaim: ((Publication) -> WatchWorkoutHealthMode?)?
@@ -188,6 +195,33 @@ final class LiveWorkoutLink {
         requestRemoteWorkout()
     }
 
+    func refreshConnectionAndWait() async -> Bool {
+        receiveContext()
+        sendContext()
+        connectionGeneration = UUID()
+        isConnected = false
+        commandPending = false
+        commandRejected = false
+        let generation = connectionGeneration
+
+        return await withCheckedContinuation { continuation in
+            send(.request) { [weak self] reply in
+                guard let self, self.connectionGeneration == generation else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                guard let reply else {
+                    self.isConnected = false
+                    continuation.resume(returning: false)
+                    return
+                }
+                self.receive(reply.publication)
+                self.isConnected = self.isReachable
+                continuation.resume(returning: self.isConnected)
+            }
+        }
+    }
+
     func refreshRemoteWorkout() {
         guard isConnected else { return }
         requestRemoteWorkout()
@@ -229,6 +263,35 @@ final class LiveWorkoutLink {
                 self.commandRejected = !reply.accepted
             } else {
                 self.refreshConnection()
+            }
+        }
+    }
+
+    func sendActionAndWait(_ action: LiveWorkoutAction, for workoutID: UUID,
+                           expectedRevision: Int) async -> Bool {
+        guard isConnected, !commandPending, let remote, let workout = remote.workout,
+              workout.id == workoutID, remote.revision == expectedRevision,
+              action.isAvailable(in: workout) else { return false }
+
+        let generation = connectionGeneration
+        commandPending = true
+        commandRejected = false
+        return await withCheckedContinuation { continuation in
+            send(.command(workoutID, expectedRevision, action)) { [weak self] reply in
+                guard let self, self.connectionGeneration == generation else {
+                    continuation.resume(returning: false)
+                    return
+                }
+                self.commandPending = false
+                guard let reply else {
+                    self.refreshConnection()
+                    continuation.resume(returning: false)
+                    return
+                }
+                self.receive(reply.publication)
+                self.commandRejected = !reply.accepted
+                self.isConnected = self.isReachable
+                continuation.resume(returning: reply.accepted)
             }
         }
     }

@@ -116,7 +116,7 @@ enum WorkoutSyncMessage: Codable {
 }
 
 enum WorkoutFiles {
-    static func location(_ name: String) -> URL {
+    nonisolated static func location(_ name: String) -> URL {
         URL.applicationSupportDirectory.appending(path: "ModiFiT").appending(path: name)
     }
 

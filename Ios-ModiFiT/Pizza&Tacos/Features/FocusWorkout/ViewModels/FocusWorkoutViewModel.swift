@@ -40,10 +40,43 @@ final class FocusWorkoutViewModel: ObservableObject {
     private var pauseStartedAt: Date?
     private var starting = false
 
-    init(routine: Routine, historyStore: WorkoutHistoryStore) {
+    init(routine: Routine, historyStore: WorkoutHistoryStore, restoring snapshot: LiveWorkoutSnapshot? = nil) {
         self.routine = routine
         self.historyStore = historyStore
         exercises = routine.exercises
+        if let snapshot, snapshot.isValid {
+            restore(snapshot)
+        }
+    }
+
+    private func restore(_ snapshot: LiveWorkoutSnapshot) {
+        workoutID = snapshot.id
+        position = snapshot.position
+        sessionStartedAt = snapshot.setStartedAt
+        currentSetStartedAt = snapshot.setStartedAt
+        estimatedWorkoutDurationSeconds = WorkoutTiming.totalSeconds(for: exercises)
+        pausedFromState = snapshot.resting ? .resting : .exercising
+        pauseStartedAt = snapshot.pausedAt
+        state = snapshot.pausedAt != nil ? .paused : (snapshot.resting ? .resting : .exercising)
+
+        if let deadline = snapshot.deadline {
+            if snapshot.resting, deadline <= (snapshot.pausedAt ?? .now) {
+                restTimeExpired = true
+                restOvertimeStartedAt = deadline
+            } else {
+                countdownDeadline = deadline
+                remainingSeconds = max(0, Int(ceil(deadline.timeIntervalSince(snapshot.pausedAt ?? .now))))
+            }
+        }
+
+        guard snapshot.pausedAt == nil else { return }
+        if let deadline = countdownDeadline {
+            if deadline <= .now {
+                refreshCountdown()
+            } else {
+                scheduleCountdown()
+            }
+        }
     }
 
     var currentExercise: FocusExercise { exercises[min(exerciseIndex, exercises.count - 1)] }

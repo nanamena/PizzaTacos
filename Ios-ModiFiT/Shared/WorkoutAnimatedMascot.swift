@@ -34,8 +34,15 @@ struct WorkoutAnimatedMascot: View {
     }
 
     private func pose(at date: Date) -> some View {
-        Image(decorative: WorkoutMascotPose.imageName(for: workout, at: date, reduceMotion: reduceMotion))
+        let imageName = WorkoutMascotPose.imageName(for: workout, at: date, reduceMotion: reduceMotion)
+        let image = Image(decorative: imageName)
             .resizable()
             .scaledToFit()
+        #if os(watchOS)
+        // Compensate for the extra transparent space in the two rest frames.
+        return image.scaleEffect(imageName.hasPrefix("WorkoutAnimationRest") ? 1.25 : 1)
+        #else
+        return image
+        #endif
     }
 }

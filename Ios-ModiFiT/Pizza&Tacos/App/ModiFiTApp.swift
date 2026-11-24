@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 
 @main
@@ -16,21 +17,31 @@ struct ModiFiTApp: App {
         _workoutLibrary = StateObject(wrappedValue: library)
         let preferences = WorkoutPreferencesStore()
         _workoutPreferences = StateObject(wrappedValue: preferences)
-        watchSync = PhoneWorkoutSync(library: library, history: history, workoutPreferences: preferences)
+        let sync = PhoneWorkoutSync(library: library, history: history, workoutPreferences: preferences)
+        watchSync = sync
+        let actionHandler: AdvanceWorkoutIntent.ActionHandler = { [weak sync] workoutID, sourceID, revision in
+            guard let sync else { return false }
+            return await sync.advanceWorkout(workoutID: workoutID, sourceID: sourceID, revision: revision)
+        }
+        AppDependencyManager.shared.add(key: AdvanceWorkoutIntent.actionDependencyKey, dependency: actionHandler)
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(themeStore: themeStore, historyStore: historyStore, workoutLibrary: workoutLibrary, watchSync: watchSync,
                         workoutPreferences: workoutPreferences)
-                .task { await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded() }
+                .task {
+                    await AppNotificationAuthorization.requestOnFirstLaunch()
+                    await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded()
+                }
                 .onChange(of: themeStore.palette, initial: true) { _, palette in
                     watchSync.updatePalette(palette)
                 }
                 .onChange(of: workoutPreferences.health) { _, _ in
                     watchSync.syncHealthPreference()
                 }
-                .onChange(of: scenePhase) { _, phase in
+                .onChange(of: scenePhase, initial: true) { _, phase in
+                    watchSync.setAppIsActive(phase == .active)
                     if phase == .active {
                         AppleHealthAccess.shared.refresh()
                         watchSync.refresh()

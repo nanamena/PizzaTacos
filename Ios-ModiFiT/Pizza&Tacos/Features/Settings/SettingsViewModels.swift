@@ -3,6 +3,20 @@ import AVFoundation
 import Combine
 import UserNotifications
 
+enum AppNotificationAuthorization {
+    static func requestOnFirstLaunch() async {
+        let center = UNUserNotificationCenter.current()
+        guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
+
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            UserDefaults.standard.set(granted, forKey: "modifit.notificationsEnabled")
+        } catch {
+            UserDefaults.standard.set(false, forKey: "modifit.notificationsEnabled")
+        }
+    }
+}
+
 // Este ViewModel coordina las preferencias locales y las autorizaciones reales del sistema.
 @MainActor
 final class PermissionsViewModel: ObservableObject {

@@ -66,7 +66,9 @@ struct WatchActiveWorkoutView: View {
 
     private var timerHeader: some View {
         VStack(spacing: 4) {
-            phaseLabel
+            if workout.pausedAt != nil {
+                Text("Paused").font(.footnote)
+            }
             timerStatus
         }
     }
@@ -94,15 +96,6 @@ struct WatchActiveWorkoutView: View {
             Text("Connection lost").font(.footnote)
         } else if commandRejected {
             Text("Couldn’t apply that action. Try again.").font(.footnote)
-        }
-    }
-
-    @ViewBuilder
-    private var phaseLabel: some View {
-        if workout.pausedAt != nil {
-            Text("Paused").font(.footnote)
-        } else if workout.resting {
-            Text("Rest").font(.footnote)
         }
     }
 

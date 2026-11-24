@@ -18,6 +18,7 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
     private var catalogNeedsSending = true
     private var palette: AppPalette?
     let live = LiveWorkoutLink()
+    private let liveActivityController = WorkoutLiveActivityController()
     private let starts = WorkoutStartCoordinator()
     private var preparedToStart = false
     @Published private(set) var workoutStartIssue = false
@@ -38,19 +39,38 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
         self.history = history
         self.workoutPreferences = workoutPreferences
         super.init()
-        live.publish(nil)
-        live.onPeerState = { [weak self] peer in self?.starts.observeWatch(peer) }
+        live.onConnectionChange = { [weak self] isReachable in
+            self?.liveActivityController.remoteReachabilityChanged(isReachable)
+        }
+        live.onPeerState = { [weak self] peer in
+            guard let self else { return }
+            self.starts.observeWatch(peer)
+            self.liveActivityController.receive(
+                peer.workout,
+                sourceID: peer.source,
+                revision: peer.revision,
+                isWatchWorkout: true,
+                canAdvance: self.live.isConnected && peer.workout?.pausedAt == nil
+            )
+        }
         live.onWatchClaim = { [weak self] peer in
             guard let self, self.preparedToStart else { return nil }
             return self.starts.reserveWatch(peer, healthMode: self.healthMode)
         }
-        Task {
-            await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded()
-            starts.recoverPhoneReservation()
-            preparedToStart = true
-        }
         live.onAction = { [weak self] action in self?.phoneWorkout?.applyLiveWorkoutAction(action) }
         live.onClockRefresh = { [weak self] in self?.phoneWorkout?.refreshCountdown() }
+        if let snapshot = live.localPublication.workout, snapshot.isValid {
+            installPhoneWorkout(FocusWorkoutViewModel(routine: snapshot.routine, historyStore: history, restoring: snapshot))
+        } else {
+            if live.localPublication.workout != nil { live.publish(nil) }
+            liveActivityController.end(sourceID: live.localPublication.source)
+        }
+        let restoredWorkoutID = phoneWorkout?.workoutID
+        Task {
+            await AppleHealthAccess.shared.discardInterruptedWorkoutIfNeeded()
+            starts.recoverPhoneReservation(activePhoneWorkoutID: restoredWorkoutID)
+            preparedToStart = true
+        }
         if let data = UserDefaults.standard.data(forKey: pendingSelectionKey) {
             pendingWatchExerciseSelectionRequest = try? JSONDecoder().decode(WatchExerciseSelectionRequest.self, from: data)
         }
@@ -65,6 +85,7 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
 
     func updatePalette(_ palette: AppPalette) {
         self.palette = palette
+        liveActivityController.updatePalette(palette)
         sendPaletteIfNeeded()
     }
 
@@ -103,13 +124,27 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
             return
         }
         dismissWorkoutStartIssue()
+        installPhoneWorkout(workout)
+        Task { await workout.startWorkout() }
+    }
+
+    private func installPhoneWorkout(_ workout: FocusWorkoutViewModel) {
+        let id = workout.workoutID
         workout.onLiveWorkoutChange = { [weak self, weak workout] snapshot in
             guard let self else { return }
             self.live.publish(snapshot)
+            let publication = self.live.localPublication
+            self.liveActivityController.receive(
+                snapshot,
+                sourceID: publication.source,
+                revision: publication.revision,
+                isWatchWorkout: false,
+                canAdvance: true
+            )
             if workout?.state == .completed { self.starts.releasePhone(id: id) }
         }
         phoneWorkout = workout
-        Task { await workout.startWorkout() }
+        workout.onLiveWorkoutChange?(workout.liveWorkout)
     }
 
     func retryWorkoutStart() {
@@ -127,6 +162,55 @@ final class PhoneWorkoutSync: NSObject, ObservableObject, WCSessionDelegate {
     func dismissPhoneWorkout() {
         guard phoneWorkout?.state == .completed else { return }
         phoneWorkout = nil
+    }
+
+    func setAppIsActive(_ isActive: Bool) {
+        liveActivityController.setAppIsActive(isActive)
+    }
+
+    func advanceWorkout(workoutID: UUID, sourceID: UUID, revision: Int) async -> Bool {
+        if live.localPublication.source == sourceID {
+            let accepted = advancePhoneWorkout(workoutID: workoutID, revision: revision)
+            let logger = Logger(subsystem: "ModiFiT", category: "LiveActivityAction")
+            logger.info("Local workout accepted Live Activity action: \(accepted).")
+            if !accepted {
+                liveActivityController.refreshExistingActivity(for: workoutID)
+            }
+            await liveActivityController.flushUpdates()
+            logger.info("Finished processing Local Workout Live Activity updates.")
+            return accepted
+        }
+
+        if !live.isConnected {
+            _ = await live.refreshConnectionAndWait()
+        }
+        guard live.isConnected,
+              let peer = live.peerState,
+              peer.source == sourceID,
+              peer.revision == revision,
+              let workout = peer.workout,
+              workout.id == workoutID,
+              workout.pausedAt == nil else { return false }
+
+        let action: LiveWorkoutAction = workout.resting ? .skipRest : .finishSet
+        let accepted = await live.sendActionAndWait(action, for: workoutID, expectedRevision: revision)
+        await liveActivityController.flushUpdates()
+        return accepted
+    }
+
+    private func advancePhoneWorkout(workoutID: UUID, revision: Int) -> Bool {
+        guard let phoneWorkout, phoneWorkout.workoutID == workoutID else { return false }
+        phoneWorkout.refreshCountdown()
+
+        let publication = live.localPublication
+        guard publication.revision == revision,
+              let workout = publication.workout,
+              workout.id == workoutID else { return false }
+
+        let action: LiveWorkoutAction = workout.resting ? .skipRest : .finishSet
+        guard action.isAvailable(in: workout) else { return false }
+        phoneWorkout.applyLiveWorkoutAction(action)
+        return live.localPublication.revision > revision
     }
 
     @discardableResult
