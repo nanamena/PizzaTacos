@@ -350,10 +350,11 @@ private struct RoutinesSection: View {
                     Label("Sort Routines", systemImage: "arrow.up.arrow.down")
                         .labelStyle(.iconOnly)
                         .font(.body.weight(.semibold))
+                        .foregroundStyle(appColors.primary)
                         .frame(width: 44, height: 44)
-                        .background(appColors.surface, in: Circle())
-                        .overlay(Circle().strokeBorder(appColors.border))
+                        .contentShape(.interaction, Circle())
                 }
+                .buttonStyle(.plain)
                 .tint(appColors.primary)
                 .accessibilityValue("\(sortCriterion.title), \(isSortDescending ? "Descending" : "Ascending")")
             }

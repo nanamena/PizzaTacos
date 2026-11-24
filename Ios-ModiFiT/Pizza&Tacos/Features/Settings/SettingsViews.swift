@@ -106,7 +106,6 @@ struct PermissionsView: View {
     @Environment(\.appColors) private var appColors
 
     @ObservedObject var viewModel: PermissionsViewModel
-    @ObservedObject var workoutPreferences: WorkoutPreferencesStore
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -127,22 +126,6 @@ struct PermissionsView: View {
                     PermissionSettingRow(symbol: "speaker.wave.2.fill", title: "Audio",
                                          detail: "Sounds, timers and notifications.",
                                          isOn: viewModel.audioEnabled, onToggle: viewModel.setAudioEnabled)
-                    SettingsDivider()
-                    NavigationLink {
-                        AppleHealthSettingsView(preferences: workoutPreferences)
-                    } label: {
-                        HStack(spacing: 12) {
-                            SettingsIcon(symbol: "heart.fill")
-                            Text("Apple Health")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundStyle(appColors.text)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(appColors.secondaryText)
-                        }
-                        .padding(.vertical, 13)
-                    }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 14).settingsCardStyle()
 
@@ -169,7 +152,6 @@ struct PermissionsView: View {
         .task {
             viewModel.refreshCaptureAuthorization()
             await viewModel.refreshNotificationAuthorization()
-            AppleHealthAccess.shared.refresh()
         }
         .alert("Permission settings", isPresented: alertBinding) {
             Button("Not Now", role: .cancel) { viewModel.alertMessage = nil }
@@ -254,10 +236,8 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
 
-                    AppleHealthSettingsView(preferences: workoutPreferences, isEmbedded: true)
-
                     NavigationLink {
-                        PermissionsView(viewModel: permissionsViewModel, workoutPreferences: workoutPreferences)
+                        PermissionsView(viewModel: permissionsViewModel)
                     } label: {
                         SettingsNavigationRow(item: viewModel.navigationItems[0])
                     }.buttonStyle(.plain)
@@ -273,9 +253,47 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(appColors.background.ignoresSafeArea())
+            .background {
+                SettingsBackIndicator(color: appColors.primary)
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+            }
             .toolbar(.hidden, for: .navigationBar)
         }
         .tint(appColors.primary)
+    }
+}
+
+private struct SettingsBackIndicator: UIViewControllerRepresentable {
+    let color: Color
+
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.indicatorColor = UIColor(color)
+    }
+
+    final class Controller: UIViewController {
+        var indicatorColor: UIColor = .label {
+            didSet { updateBackIndicator() }
+        }
+
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            updateBackIndicator()
+        }
+
+        private func updateBackIndicator() {
+            guard let bar = navigationController?.navigationBar else { return }
+            let indicator = UIImage(
+                systemName: "chevron.backward",
+                withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
+            )?.withTintColor(indicatorColor, renderingMode: .alwaysOriginal)
+            bar.backIndicatorImage = indicator
+            bar.backIndicatorTransitionMaskImage = indicator
+        }
     }
 }
 
@@ -290,7 +308,7 @@ private struct WorkoutPreferencesCard: View {
                     Text("Workout Preferences")
                         .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundStyle(appColors.text)
-                    Text("Sets, reps and rest for new exercises.")
+                    Text("Sets, reps, rest and Apple Health.")
                         .font(.system(size: 12, design: .rounded))
                         .foregroundStyle(appColors.secondaryText)
                 }
@@ -306,6 +324,7 @@ private struct WorkoutPreferencesCard: View {
 }
 
 private struct WorkoutPreferencesView: View {
+    @Environment(\.appColors) private var appColors
     @ObservedObject var preferences: WorkoutPreferencesStore
 
     var body: some View {
@@ -316,8 +335,16 @@ private struct WorkoutPreferencesView: View {
                 WorkoutDurationPicker(title: "Rest", value: $preferences.defaultRestSeconds, range: 0...300)
             } footer: {
                 Text("Applied automatically to each exercise in manually created workouts.")
+                    .foregroundStyle(appColors.secondaryText)
             }
+            .listRowBackground(appColors.card)
+
+            AppleHealthSettingsView(preferences: preferences)
+                .listRowBackground(appColors.card)
         }
+        .scrollContentBackground(.hidden)
+        .background(appColors.background.ignoresSafeArea())
+        .foregroundStyle(appColors.text)
         .navigationTitle("Workout Preferences")
         .navigationBarTitleDisplayMode(.inline)
     }

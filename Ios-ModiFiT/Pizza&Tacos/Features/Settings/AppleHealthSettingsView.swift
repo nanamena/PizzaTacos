@@ -3,7 +3,6 @@ import SwiftUI
 struct AppleHealthSettingsView: View {
     @ObservedObject var preferences: WorkoutPreferencesStore
     var isSetup = false
-    var isEmbedded = false
 
     @Environment(\.appColors) private var appColors
     @ObservedObject private var healthAccess = AppleHealthAccess.shared
@@ -15,59 +14,58 @@ struct AppleHealthSettingsView: View {
         preferences.health ?? WorkoutHealthPreference()
     }
 
+    private var savesWorkouts: Bool {
+        preference.category != nil && preference.savesWorkouts
+    }
+
     private var category: Binding<WorkoutActivityCategory?> {
         if isSetup { return $setupCategory }
 
         return Binding(get: { preference.category }, set: { category in
-            var updated = preference
-            updated.category = category
-            preferences.health = updated
+            preferences.health = WorkoutHealthPreference(
+                savesWorkouts: savesWorkouts && category != nil,
+                category: category
+            )
         })
     }
 
     var body: some View {
         Group {
-            if isEmbedded {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Apple Health")
-                        .font(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    integrationControls
-                    if let explanation {
-                        Text(explanation).font(.footnote).foregroundStyle(appColors.secondaryText)
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(appColors.text)
-                .background(appColors.card, in: RoundedRectangle(cornerRadius: 20))
-            } else {
+            if isSetup {
                 Form {
-                    if isSetup {
-                        Section {
-                            typePicker.pickerStyle(.navigationLink)
-                        } footer: {
-                            Text("This type is used for workouts started on iPhone and Apple Watch.")
+                    Section {
+                        typePicker
+                    } footer: {
+                        Text("This type is used for workouts started on iPhone and Apple Watch.")
+                    }
+                    Section {
+                        Button("Connect Apple Health", action: connect)
+                            .disabled(setupCategory == nil || !healthAccess.isAvailable)
+                        Button("Continue Without Apple Health") {
+                            preferences.health = WorkoutHealthPreference(category: setupCategory)
                         }
-                        Section {
-                            Button("Connect Apple Health", action: connect)
-                                .disabled(setupCategory == nil || !healthAccess.isAvailable)
-                            Button("Continue Without Apple Health") {
-                                preferences.health = WorkoutHealthPreference(category: setupCategory)
-                            }
-                        } footer: {
-                            Text("Connect to save completed workouts. You can change this later in Settings.")
-                        }
-                    } else {
-                        Section {
-                            integrationControls
-                        } footer: {
-                            if let explanation { Text(explanation) }
-                        }
+                    } footer: {
+                        Text("Connect to save completed workouts. You can change this later in Settings under Workout Preferences.")
                     }
                 }
                 .navigationTitle("Apple Health")
                 .navigationBarTitleDisplayMode(.inline)
+            } else {
+                Section {
+                    typePicker
+                    Toggle("Save Workouts", isOn: Binding(get: { savesWorkouts }, set: setEnabled))
+                        .disabled(preference.category == nil || (!savesWorkouts && !healthAccess.isAvailable))
+
+                    if savesWorkouts && healthAccess.isAvailable && !healthAccess.canWriteWorkouts {
+                        Button("Restore Apple Health Access", action: connect)
+                    }
+                } header: {
+                    Text("Apple Health")
+                        .foregroundStyle(appColors.secondaryText)
+                } footer: {
+                    Text(explanation)
+                        .foregroundStyle(appColors.secondaryText)
+                }
             }
         }
         .disabled(requestingAccess)
@@ -88,44 +86,13 @@ struct AppleHealthSettingsView: View {
                 Text(category.title).tag(Optional(category))
             }
         }
+        .pickerStyle(.navigationLink)
     }
 
-    @ViewBuilder
-    private var integrationControls: some View {
-        Toggle("Save Workouts", isOn: Binding(get: { preference.savesWorkouts }, set: setEnabled))
-            .toggleStyle(.switch)
-            .disabled(!preference.savesWorkouts && (preference.category == nil || !healthAccess.isAvailable))
-        if isEmbedded {
-            NavigationLink {
-                Form { typePicker.pickerStyle(.inline) }
-                    .navigationTitle("Default Workout Type")
-                    .navigationBarTitleDisplayMode(.inline)
-            } label: {
-                LabeledContent("Default Workout Type") {
-                    HStack {
-                        if let category = preference.category {
-                            Text(category.title)
-                        } else {
-                            Text("Choose a Type")
-                        }
-                        Image(systemName: "chevron.right").accessibilityHidden(true)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-        } else {
-            typePicker.pickerStyle(.navigationLink)
-        }
-
-        if preference.savesWorkouts && healthAccess.isAvailable && !healthAccess.canWriteWorkouts {
-            Button("Restore Apple Health Access", action: connect)
-        }
-    }
-
-    private var explanation: LocalizedStringKey? {
+    private var explanation: LocalizedStringKey {
         if !healthAccess.isAvailable { return "Apple Health is unavailable on this device." }
-        if preference.category == nil { return "Choose a workout type to enable Apple Health." }
-        if preference.savesWorkouts && !healthAccess.canWriteWorkouts {
+        if preference.category == nil { return "Choose a workout type to enable Save Workouts." }
+        if savesWorkouts && !healthAccess.canWriteWorkouts {
             return "ModiFiT needs permission to save workouts on this iPhone."
         }
         return "Changes apply to your next workout on iPhone or Apple Watch."
